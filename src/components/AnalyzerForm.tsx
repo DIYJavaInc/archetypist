@@ -114,6 +114,8 @@ export default function AnalyzerForm({ onAnalyze, isLoading }: AnalyzerFormProps
       return
     }
 
+    console.log('[form] submitting person1:', JSON.stringify(person1))
+    console.log('[form] submitting person2:', JSON.stringify(person2))
     setErrors([])
     onAnalyze(person1, person2)
   }

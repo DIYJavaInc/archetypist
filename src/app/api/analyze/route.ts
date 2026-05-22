@@ -22,6 +22,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { person1, person2, tier = 'free', existingSessionId } = body
 
+    console.log('[analyze] received person1:', JSON.stringify(person1))
+    console.log('[analyze] received person2:', JSON.stringify(person2))
+
+    if (!person1?.name || !person1?.date || !person1?.location) {
+      return NextResponse.json({ error: 'Missing Person 1 data' }, { status: 400 })
+    }
+    if (!person2?.name || !person2?.date || !person2?.location) {
+      return NextResponse.json({ error: 'Missing Person 2 data' }, { status: 400 })
+    }
+
     const sessionId = existingSessionId || generateSessionId()
 
     // Geocode locations
