@@ -69,7 +69,7 @@ export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDis
       {/* Archetype Card */}
       <div className="glass-card rounded-2xl p-8 text-center border border-purple-700/30 glow-purple">
         <div className="inline-flex items-center gap-2 bg-purple-900/30 border border-purple-700/50 rounded-full px-4 py-1 text-xs text-purple-300 mb-4">
-          <Star className="w-3 h-3" /> Your Relationship Archetype
+          <Star className="w-3 h-3" /> Your Partner's Archetype
         </div>
         <h2 className="text-3xl md:text-4xl font-bold gradient-text mb-3">{result.archetype}</h2>
         <p className="text-slate-300 text-lg max-w-xl mx-auto">{result.archetypeDescription}</p>

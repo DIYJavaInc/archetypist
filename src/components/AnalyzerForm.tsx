@@ -123,8 +123,8 @@ export default function AnalyzerForm({ onAnalyze, isLoading }: AnalyzerFormProps
   return (
     <form onSubmit={handleSubmit} noValidate>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <PersonForm person={person1} setPerson={setPerson1} label="Person 1" color="purple" />
-        <PersonForm person={person2} setPerson={setPerson2} label="Person 2" color="pink" />
+        <PersonForm person={person1} setPerson={setPerson1} label="You" color="purple" />
+        <PersonForm person={person2} setPerson={setPerson2} label="Partner" color="pink" />
       </div>
 
       {errors.length > 0 && (
