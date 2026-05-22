@@ -9,7 +9,8 @@ export interface BirthData {
 export interface PlanetPosition {
   name: string
   sign: string
-  degree: number
+  degree: number         // degree within sign (0–29.99)
+  absoluteDegree: number // ecliptic longitude (0–359.99) — used for aspect math
   retrograde?: boolean
 }
 
@@ -25,8 +26,14 @@ export interface NatalChart {
 }
 
 export interface SynastryAspect {
-  planet1: string
-  planet2: string
+  planet1Key: string        // object key, e.g. "sun"
+  planet2Key: string
+  planet1Label: string      // display label, e.g. "Sun"
+  planet2Label: string
+  planet1Sign: string
+  planet2Sign: string
+  planet1Degree: number
+  planet2Degree: number
   aspect: string
   orb: number
   nature: 'harmonious' | 'challenging' | 'neutral'
@@ -132,11 +139,13 @@ function mapApiResponseToChart(
     const planet = Object.values(data).find(
       p => typeof p === 'object' && p.name?.toLowerCase() === name.toLowerCase()
     )
-    if (!planet) return { name, sign: 'Aries', degree: 0 }
+    if (!planet) return { name, sign: 'Aries', degree: 0, absoluteDegree: 0 }
+    const abs = ((planet.fullDegree % 360) + 360) % 360
     return {
       name: planet.name,
       sign: planet.sign,
-      degree: planet.fullDegree % 30,
+      degree: abs % 30,
+      absoluteDegree: abs,
       retrograde: planet.isRetro === 'true'
     }
   }
@@ -164,7 +173,6 @@ function rev(x: number): number {
   return ((x % 360) + 360) % 360
 }
 
-/** Iterative solution to Kepler's equation M = E - e·sin(E) */
 function solveKepler(M_deg: number, e: number): number {
   let E = M_deg + e * (180 / Math.PI) * Math.sin(M_deg * D2R) * (1 + e * Math.cos(M_deg * D2R))
   for (let i = 0; i < 15; i++) {
@@ -175,12 +183,8 @@ function solveKepler(M_deg: number, e: number): number {
   return E
 }
 
-interface Helio {
-  x: number  // heliocentric ecliptic X (AU)
-  y: number  // heliocentric ecliptic Y (AU)
-}
+interface Helio { x: number; y: number }
 
-/** Heliocentric ecliptic XY for a planet given its orbital elements */
 function helioXY(N: number, i: number, w: number, a: number, e: number, M: number): Helio {
   const E = solveKepler(M, e)
   const xv = a * (Math.cos(E * D2R) - e)
@@ -188,13 +192,11 @@ function helioXY(N: number, i: number, w: number, a: number, e: number, M: numbe
   const v = rev(Math.atan2(yv, xv) / D2R)
   const r = Math.sqrt(xv * xv + yv * yv)
   const vw = v + w
-  // Project into ecliptic plane (ignoring Z / latitude for sign accuracy)
   const x = r * (Math.cos(N * D2R) * Math.cos(vw * D2R) - Math.sin(N * D2R) * Math.sin(vw * D2R) * Math.cos(i * D2R))
   const y = r * (Math.sin(N * D2R) * Math.cos(vw * D2R) + Math.cos(N * D2R) * Math.sin(vw * D2R) * Math.cos(i * D2R))
   return { x, y }
 }
 
-/** Sun's geocentric ecliptic XY and longitude (= Earth's heliocentric, negated) */
 function sunGeo(d: number): Helio & { lon: number } {
   const w = rev(282.9404 + 4.70935e-5 * d)
   const e = 0.016709 - 1.151e-9 * d
@@ -208,12 +210,11 @@ function sunGeo(d: number): Helio & { lon: number } {
   return { x: r * Math.cos(lon * D2R), y: r * Math.sin(lon * D2R), lon }
 }
 
-/** Moon's geocentric ecliptic longitude (simplified, accurate ~1°) */
 function moonGeoLon(d: number, sunLon: number): number {
   const N = rev(125.1228 - 0.0529538083 * d)
   const i = 5.1454
   const w = rev(318.0634 + 0.1643573223 * d)
-  const a = 60.2666  // Earth radii
+  const a = 60.2666
   const e = 0.054900
   const M = rev(115.3654 + 13.0649929509 * d)
 
@@ -227,12 +228,10 @@ function moonGeoLon(d: number, sunLon: number): number {
   const yg = r * (Math.sin(N * D2R) * Math.cos(vw * D2R) + Math.cos(N * D2R) * Math.sin(vw * D2R) * Math.cos(i * D2R))
   let lon = rev(Math.atan2(yg, xg) / D2R)
 
-  // Main perturbation corrections
-  const Ls = rev(356.0470 + 0.9856002585 * d + (282.9404 + 4.70935e-5 * d))  // Sun mean longitude
-  const Ms = rev(356.0470 + 0.9856002585 * d)  // Sun mean anomaly
-  const Mm = M                                   // Moon mean anomaly
-  const D_  = rev(lon - sunLon)                  // Moon's mean elongation
-  const F  = rev(lon - N)                        // Moon's argument of latitude
+  const Ms = rev(356.0470 + 0.9856002585 * d)
+  const Mm = M
+  const D_ = rev(lon - sunLon)
+  const F  = rev(lon - N)
 
   lon += -1.274 * Math.sin((Mm - 2 * D_) * D2R)
        + 0.658 * Math.sin(2 * D_ * D2R)
@@ -250,11 +249,7 @@ function moonGeoLon(d: number, sunLon: number): number {
   return rev(lon)
 }
 
-/** Geocentric ecliptic longitude of a planet given its heliocentric XY and the Sun's geocentric XY */
 function toGeocentric(helio: Helio, sun: Helio): number {
-  // geocentric = heliocentric_planet - heliocentric_earth
-  // heliocentric_earth = -geocentric_sun = -(sun.x, sun.y)
-  // so: geocentric_planet = heliocentric_planet + geocentric_sun
   return rev(Math.atan2(helio.y + sun.y, helio.x + sun.x) / D2R)
 }
 
@@ -270,6 +265,7 @@ function lonToPosition(lon: number, name: string): PlanetPosition {
     name,
     sign: ZODIAC_SIGNS[Math.min(signIndex, 11)],
     degree: normalized % 30,
+    absoluteDegree: normalized,
     retrograde: false
   }
 }
@@ -286,55 +282,39 @@ function calculateChartAccurate(
   year: number, month: number, day: number, hour: number, minute: number
 ): NatalChart {
   const jd = julianDay(year, month, day, hour + minute / 60)
-  const d = jd - 2451543.5  // Days since 1999 Dec 31.0 UT (Paul Schlyter's epoch)
+  const d = jd - 2451543.5
 
   const sun = sunGeo(d)
   const moonLon = moonGeoLon(d, sun.lon)
 
-  // Planetary orbital elements (N, i, w, a, e, M) at day d
   const mercuryLon = toGeocentric(helioXY(
-    rev(48.3313 + 3.24587e-5 * d),
-    7.0047 + 5.0e-8 * d,
-    rev(29.1241 + 1.01444e-5 * d),
-    0.387098,
-    0.205635 + 5.59e-10 * d,
-    rev(168.6562 + 4.0923344368 * d)
+    rev(48.3313 + 3.24587e-5 * d), 7.0047 + 5.0e-8 * d,
+    rev(29.1241 + 1.01444e-5 * d), 0.387098,
+    0.205635 + 5.59e-10 * d, rev(168.6562 + 4.0923344368 * d)
   ), sun)
 
   const venusLon = toGeocentric(helioXY(
-    rev(76.6799 + 2.46590e-5 * d),
-    3.3946 + 2.75e-8 * d,
-    rev(54.8910 + 1.38374e-5 * d),
-    0.723330,
-    0.006773 - 1.302e-9 * d,
-    rev(48.0052 + 1.6021302244 * d)
+    rev(76.6799 + 2.46590e-5 * d), 3.3946 + 2.75e-8 * d,
+    rev(54.8910 + 1.38374e-5 * d), 0.723330,
+    0.006773 - 1.302e-9 * d, rev(48.0052 + 1.6021302244 * d)
   ), sun)
 
   const marsLon = toGeocentric(helioXY(
-    rev(49.5574 + 2.11081e-5 * d),
-    1.8497 - 1.78e-8 * d,
-    rev(286.5016 + 2.92961e-5 * d),
-    1.523688,
-    0.093405 + 2.516e-9 * d,
-    rev(18.6021 + 0.5240207766 * d)
+    rev(49.5574 + 2.11081e-5 * d), 1.8497 - 1.78e-8 * d,
+    rev(286.5016 + 2.92961e-5 * d), 1.523688,
+    0.093405 + 2.516e-9 * d, rev(18.6021 + 0.5240207766 * d)
   ), sun)
 
   const jupiterLon = toGeocentric(helioXY(
-    rev(100.4542 + 2.76854e-5 * d),
-    1.3030 - 1.557e-7 * d,
-    rev(273.8777 + 1.64505e-5 * d),
-    5.20256,
-    0.048498 + 4.469e-9 * d,
-    rev(19.8950 + 0.0830853001 * d)
+    rev(100.4542 + 2.76854e-5 * d), 1.3030 - 1.557e-7 * d,
+    rev(273.8777 + 1.64505e-5 * d), 5.20256,
+    0.048498 + 4.469e-9 * d, rev(19.8950 + 0.0830853001 * d)
   ), sun)
 
   const saturnLon = toGeocentric(helioXY(
-    rev(113.6634 + 2.38980e-5 * d),
-    2.4886 - 1.081e-7 * d,
-    rev(339.3939 + 2.97661e-5 * d),
-    9.55475,
-    0.055546 - 9.499e-9 * d,
-    rev(316.9670 + 0.0334442282 * d)
+    rev(113.6634 + 2.38980e-5 * d), 2.4886 - 1.081e-7 * d,
+    rev(339.3939 + 2.97661e-5 * d), 9.55475,
+    0.055546 - 9.499e-9 * d, rev(316.9670 + 0.0334442282 * d)
   ), sun)
 
   return {
@@ -348,54 +328,79 @@ function calculateChartAccurate(
   }
 }
 
+const ASPECT_TYPES = [
+  { name: 'Conjunction', angle: 0,   orb: 8, nature: 'neutral'    as const },
+  { name: 'Sextile',     angle: 60,  orb: 6, nature: 'harmonious' as const },
+  { name: 'Square',      angle: 90,  orb: 8, nature: 'challenging' as const },
+  { name: 'Trine',       angle: 120, orb: 8, nature: 'harmonious' as const },
+  { name: 'Opposition',  angle: 180, orb: 8, nature: 'challenging' as const },
+]
+
 export function calculateSynastryAspects(chart1: NatalChart, chart2: NatalChart): SynastryAspect[] {
   const aspects: SynastryAspect[] = []
   const planets1 = Object.entries(chart1) as [string, PlanetPosition][]
   const planets2 = Object.entries(chart2) as [string, PlanetPosition][]
 
-  const ASPECT_TYPES = [
-    { name: 'Conjunction', angle: 0, orb: 8, nature: 'neutral' as const },
-    { name: 'Sextile', angle: 60, orb: 6, nature: 'harmonious' as const },
-    { name: 'Square', angle: 90, orb: 8, nature: 'challenging' as const },
-    { name: 'Trine', angle: 120, orb: 8, nature: 'harmonious' as const },
-    { name: 'Opposition', angle: 180, orb: 8, nature: 'challenging' as const },
-  ]
-
-  for (const [name1, planet1] of planets1) {
-    for (const [name2, planet2] of planets2) {
-      const lon1 = ZODIAC_SIGNS.indexOf(planet1.sign) * 30 + planet1.degree
-      const lon2 = ZODIAC_SIGNS.indexOf(planet2.sign) * 30 + planet2.degree
-      let diff = Math.abs(lon1 - lon2)
+  for (const [key1, p1] of planets1) {
+    for (const [key2, p2] of planets2) {
+      // Use absoluteDegree for precise arc distance
+      let diff = Math.abs(p1.absoluteDegree - p2.absoluteDegree)
       if (diff > 180) diff = 360 - diff
 
-      for (const aspectType of ASPECT_TYPES) {
-        const orb = Math.abs(diff - aspectType.angle)
-        if (orb <= aspectType.orb) {
-          aspects.push({ planet1: name1, planet2: name2, aspect: aspectType.name, orb, nature: aspectType.nature })
+      for (const at of ASPECT_TYPES) {
+        const orb = Math.abs(diff - at.angle)
+        if (orb <= at.orb) {
+          aspects.push({
+            planet1Key: key1,
+            planet2Key: key2,
+            planet1Label: p1.name,
+            planet2Label: p2.name,
+            planet1Sign: p1.sign,
+            planet2Sign: p2.sign,
+            planet1Degree: p1.degree,
+            planet2Degree: p2.degree,
+            aspect: at.name,
+            orb,
+            nature: at.nature
+          })
         }
       }
     }
   }
 
-  return aspects
+  // Sort tightest orbs first so the most significant aspects appear at the top
+  return aspects.sort((a, b) => a.orb - b.orb)
 }
 
 export function formatChartForPrompt(name: string, chart: NatalChart): string {
-  const planets = [
-    `Sun in ${chart.sun.sign} (${chart.sun.degree.toFixed(1)}°)`,
-    `Moon in ${chart.moon.sign} (${chart.moon.degree.toFixed(1)}°)`,
-    `Mercury in ${chart.mercury.sign} (${chart.mercury.degree.toFixed(1)}°)`,
-    `Venus in ${chart.venus.sign} (${chart.venus.degree.toFixed(1)}°)`,
-    `Mars in ${chart.mars.sign} (${chart.mars.degree.toFixed(1)}°)`,
-    `Jupiter in ${chart.jupiter.sign} (${chart.jupiter.degree.toFixed(1)}°)`,
-    `Saturn in ${chart.saturn.sign} (${chart.saturn.degree.toFixed(1)}°)`,
-  ]
-  return `${name}:\n${planets.join('\n')}`
+  const fmt = (p: PlanetPosition) =>
+    `${p.name}: ${p.sign} ${p.degree.toFixed(2)}° (${p.absoluteDegree.toFixed(2)}° ecliptic)${p.retrograde ? ' Rx' : ''}`
+
+  return [
+    `${name}:`,
+    fmt(chart.sun),
+    fmt(chart.moon),
+    fmt(chart.mercury),
+    fmt(chart.venus),
+    fmt(chart.mars),
+    fmt(chart.jupiter),
+    fmt(chart.saturn),
+  ].join('\n')
 }
 
-export function formatAspectsForPrompt(aspects: SynastryAspect[], name1: string, name2: string): string {
+export function formatAspectsForPrompt(
+  aspects: SynastryAspect[],
+  name1: string,
+  name2: string
+): string {
+  if (aspects.length === 0) return '(no aspects within orb)'
+
   return aspects
-    .slice(0, 15)
-    .map(a => `${name1}'s ${a.planet1} ${a.aspect} ${name2}'s ${a.planet2} (orb: ${a.orb.toFixed(1)}°) - ${a.nature}`)
+    .slice(0, 20)
+    .map(a => {
+      const p1str = `${a.planet1Sign} ${a.planet1Degree.toFixed(1)}°`
+      const p2str = `${a.planet2Sign} ${a.planet2Degree.toFixed(1)}°`
+      return `${name1}'s ${a.planet1Label} (${p1str}) ${a.aspect} ${name2}'s ${a.planet2Label} (${p2str}) — orb ${a.orb.toFixed(1)}° [${a.nature}]`
+    })
     .join('\n')
 }

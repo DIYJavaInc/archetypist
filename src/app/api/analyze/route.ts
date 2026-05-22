@@ -71,15 +71,21 @@ export async function POST(request: NextRequest) {
 
     if (tier === 'free') {
       // Free analysis: archetype + 3 insights
-      const freePrompt = `You are an expert astrologer analyzing synastry between two people. Based on their birth charts, provide a concise free preview analysis.
+      const freePrompt = `You are an expert astrologer analyzing synastry. Base your entire analysis STRICTLY on the data below — no assumptions.
 
-CHART DATA:
+CHART POSITIONS (sign, degree in sign, ecliptic longitude):
 ${chartSummary1}
 
 ${chartSummary2}
 
-KEY SYNASTRY ASPECTS:
+CONFIRMED DEGREE-BASED ASPECTS (within standard orbs only):
 ${aspectsSummary}
+
+CRITICAL RULES — MUST FOLLOW:
+1. ONLY reference aspects that appear in the CONFIRMED ASPECTS list above.
+2. Do NOT infer aspects from signs alone. Two planets in the same sign are NOT conjunct unless they appear in the list with a confirmed orb.
+3. When citing an aspect, always include the sign, degree, and orb exactly as listed (e.g., "Your Moon in Pisces 12.4° conjuncts their Sun in Pisces 18.7° — 6.3° orb").
+4. If no aspects are listed for a planet pair, do not mention an aspect between them.
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Highest Timeline Soulmate"
@@ -92,20 +98,16 @@ You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Addictive Chemistry Soulmate"
 - "Safe Love Soulmate"
 
-Choose the archetype that best fits the synastry data. Keep the description concise and direct — no flowery or poetic language.
-
 Provide a JSON response with exactly this structure:
 {
   "archetype": "One of the nine archetypes listed above (exact string match)",
   "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
   "insights": [
-    "First key synastry insight about their connection (2 sentences max, specific to their chart)",
-    "Second key insight about their emotional or romantic dynamic (2 sentences max)",
-    "Third key insight about their growth potential together (2 sentences max)"
+    "Cite a specific confirmed aspect with exact degrees and orb",
+    "Cite a second confirmed aspect with exact degrees and orb",
+    "Describe a chart pattern or third confirmed aspect with exact degrees"
   ]
-}
-
-Be specific to their chart data and psychologically grounded.`
+}`
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
@@ -147,15 +149,22 @@ Be specific to their chart data and psychologically grounded.`
 
     } else {
       // Premium analysis: full reading
-      const premiumPrompt = `You are a master astrologer providing a comprehensive synastry reading. Analyze the birth charts below with depth, nuance, and psychological insight.
+      const premiumPrompt = `You are a master astrologer providing a comprehensive synastry reading. Base your entire analysis STRICTLY on the data below — no assumptions.
 
-CHART DATA:
+CHART POSITIONS (sign, degree in sign, ecliptic longitude):
 ${chartSummary1}
 
 ${chartSummary2}
 
-KEY SYNASTRY ASPECTS:
+CONFIRMED DEGREE-BASED ASPECTS (within standard orbs only):
 ${aspectsSummary}
+
+CRITICAL RULES — MUST FOLLOW:
+1. ONLY reference aspects that appear in the CONFIRMED ASPECTS list above.
+2. Do NOT infer aspects from signs alone. Two planets in the same sign are NOT conjunct unless confirmed with a tight orb.
+3. When citing any aspect, include sign, degree, and orb (e.g., "Your Venus in Capricorn 22.1° trines their Jupiter in Virgo 20.4° — 1.7° orb").
+4. If a planetary area (e.g., Mars) has no confirmed aspect, note that instead of inventing one.
+5. Score fields (0–100) should reflect actual aspect quality: tight harmonious aspects = high score, no aspect = 50, challenging aspects = lower.
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Highest Timeline Soulmate"
@@ -168,62 +177,45 @@ You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Addictive Chemistry Soulmate"
 - "Safe Love Soulmate"
 
-Choose the archetype that best fits the synastry data. Keep descriptions concise and direct — no flowery or poetic language.
-
 Provide a detailed JSON response with this EXACT structure (all fields required):
 {
   "archetype": "One of the nine archetypes listed above (exact string match)",
-  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
-  "insights": ["insight1", "insight2", "insight3"],
-  "overview": "3-4 sentence overview of the relationship's core dynamic and soul-level purpose",
+  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words)",
+  "insights": [
+    "Cite confirmed aspect 1 with exact degrees and orb",
+    "Cite confirmed aspect 2 with exact degrees and orb",
+    "Cite confirmed aspect 3 or describe chart patterns"
+  ],
+  "overview": "3-4 sentence overview grounded in the confirmed aspects above",
   "sunCompatibility": {
-    "aspect": "The main Sun-Sun or cross-planet aspect",
-    "description": "2-3 sentences on core identity and ego compatibility",
+    "aspect": "Confirmed Sun aspect (or 'no major Sun aspect detected')",
+    "description": "2-3 sentences citing confirmed data",
     "score": 75
   },
   "moonCompatibility": {
-    "aspect": "Main Moon aspect between charts",
-    "description": "2-3 sentences on emotional needs and nurturing patterns",
+    "aspect": "Confirmed Moon aspect (or 'no major Moon aspect detected')",
+    "description": "2-3 sentences citing confirmed data",
     "score": 82
   },
   "venusCompatibility": {
-    "aspect": "Main Venus aspect",
-    "description": "2-3 sentences on love styles, values, and aesthetic harmony",
+    "aspect": "Confirmed Venus aspect (or 'no major Venus aspect detected')",
+    "description": "2-3 sentences citing confirmed data",
     "score": 88
   },
   "marsCompatibility": {
-    "aspect": "Main Mars aspect",
-    "description": "2-3 sentences on desire, drive, and physical chemistry",
+    "aspect": "Confirmed Mars aspect (or 'no major Mars aspect detected')",
+    "description": "2-3 sentences citing confirmed data",
     "score": 71
   },
-  "communicationStyle": "2-3 sentences on how they communicate, Mercury aspects, and intellectual connection",
-  "emotionalDynamics": "2-3 sentences on the emotional flow, Moon dynamics, and how they support each other",
-  "romanticPotential": "2-3 sentences on the romantic and passionate potential of this union",
-  "growthOpportunities": [
-    "Growth opportunity 1",
-    "Growth opportunity 2",
-    "Growth opportunity 3"
-  ],
-  "challenges": [
-    "Challenge 1 with constructive framing",
-    "Challenge 2 with constructive framing",
-    "Challenge 3 with constructive framing"
-  ],
-  "coreStrengths": [
-    "Core strength 1",
-    "Core strength 2",
-    "Core strength 3",
-    "Core strength 4"
-  ],
-  "longTermPotential": "2-3 sentences on the long-term viability and evolution of this relationship",
-  "practicalAdvice": [
-    "Practical advice 1",
-    "Practical advice 2",
-    "Practical advice 3"
-  ]
-}
-
-Use specific planetary data from their charts. Be insightful, precise, and compassionate.`
+  "communicationStyle": "2-3 sentences on Mercury aspects from the confirmed list",
+  "emotionalDynamics": "2-3 sentences on Moon aspects from the confirmed list",
+  "romanticPotential": "2-3 sentences on Venus/Mars aspects from the confirmed list",
+  "growthOpportunities": ["opportunity 1", "opportunity 2", "opportunity 3"],
+  "challenges": ["challenge 1", "challenge 2", "challenge 3"],
+  "coreStrengths": ["strength 1", "strength 2", "strength 3", "strength 4"],
+  "longTermPotential": "2-3 sentences grounded in chart data",
+  "practicalAdvice": ["advice 1", "advice 2", "advice 3"]
+}`
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
