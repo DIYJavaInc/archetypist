@@ -87,7 +87,7 @@ export default function LandingPage() {
               icon: <Heart className="w-8 h-8 text-purple-400" />,
               step: '03',
               title: 'AI Interpretation',
-              description: 'Claude AI synthesizes the astrological data into meaningful insights about your relationship dynamics.'
+              description: 'Our AI synthesizes the astrological data into meaningful insights about your relationship dynamics.'
             }
           ].map((item) => (
             <div key={item.step} className="glass-card rounded-2xl p-8 text-center hover:border-purple-700/50 transition-all">
@@ -240,7 +240,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-wrap justify-center gap-8 items-center">
           {[
             { icon: <Shield className="w-5 h-5" />, text: 'Secure Payments via Stripe' },
-            { icon: <Zap className="w-5 h-5" />, text: 'Powered by Claude AI' },
+            { icon: <Zap className="w-5 h-5" />, text: 'Powered by our AI' },
             { icon: <Star className="w-5 h-5" />, text: 'Precise Swiss Ephemeris Data' },
           ].map((item) => (
             <div key={item.text} className="flex items-center gap-2 text-slate-400 text-sm">
@@ -258,7 +258,7 @@ export default function LandingPage() {
             <Stars className="text-purple-400 w-5 h-5" />
             <span className="font-semibold gradient-text">Archetypist</span>
           </div>
-          <p className="text-slate-500 text-sm">© 2024 Archetypist. All rights reserved.</p>
+          <p className="text-slate-500 text-sm">© 2026 Archetypist. All rights reserved.</p>
           <div className="flex gap-6 text-slate-500 text-sm">
             <a href="#" className="hover:text-white transition-colors">Privacy</a>
             <a href="#" className="hover:text-white transition-colors">Terms</a>

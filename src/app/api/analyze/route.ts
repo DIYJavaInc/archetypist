@@ -71,18 +71,31 @@ ${chartSummary2}
 KEY SYNASTRY ASPECTS:
 ${aspectsSummary}
 
+You MUST choose the archetype from EXACTLY this list — no other names allowed:
+- "Highest Timeline Partner"
+- "Life Builder"
+- "Karmic Soulmate"
+- "Healing Partner"
+- "Spiritual Catalyst"
+- "Power Couple"
+- "Intense but Temporary"
+- "Addictive Chemistry"
+- "Safe Love"
+
+Choose the archetype that best fits the synastry data. Keep the description concise and direct — no flowery or poetic language.
+
 Provide a JSON response with exactly this structure:
 {
-  "archetype": "A 2-4 word mythic archetype name for this relationship (e.g., 'The Sacred Mirror', 'The Twin Flames', 'The Alchemical Union')",
-  "archetypeDescription": "One compelling sentence describing this archetype's essence (max 25 words)",
+  "archetype": "One of the nine archetypes listed above (exact string match)",
+  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
   "insights": [
-    "First key synastry insight about their connection (2 sentences max)",
+    "First key synastry insight about their connection (2 sentences max, specific to their chart)",
     "Second key insight about their emotional or romantic dynamic (2 sentences max)",
     "Third key insight about their growth potential together (2 sentences max)"
   ]
 }
 
-Be evocative, specific to their chart data, and psychologically insightful.`
+Be specific to their chart data and psychologically grounded.`
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
@@ -134,10 +147,23 @@ ${chartSummary2}
 KEY SYNASTRY ASPECTS:
 ${aspectsSummary}
 
+You MUST choose the archetype from EXACTLY this list — no other names allowed:
+- "Highest Timeline Partner"
+- "Life Builder"
+- "Karmic Soulmate"
+- "Healing Partner"
+- "Spiritual Catalyst"
+- "Power Couple"
+- "Intense but Temporary"
+- "Addictive Chemistry"
+- "Safe Love"
+
+Choose the archetype that best fits the synastry data. Keep descriptions concise and direct — no flowery or poetic language.
+
 Provide a detailed JSON response with this EXACT structure (all fields required):
 {
-  "archetype": "2-4 word mythic archetype",
-  "archetypeDescription": "One sentence essence description",
+  "archetype": "One of the nine archetypes listed above (exact string match)",
+  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
   "insights": ["insight1", "insight2", "insight3"],
   "overview": "3-4 sentence overview of the relationship's core dynamic and soul-level purpose",
   "sunCompatibility": {

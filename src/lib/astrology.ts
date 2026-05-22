@@ -104,7 +104,8 @@ export async function getNatalChart(birthData: BirthData): Promise<NatalChart> {
         min: minute,
         lat: latitude,
         lon: longitude,
-        tzone: getTimezoneOffset(timezone)
+        tzone: getTimezoneOffset(timezone),
+        house_system: 'whole_sign'
       })
     })
 
