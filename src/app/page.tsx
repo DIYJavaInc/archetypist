@@ -110,8 +110,8 @@ export default function LandingPage() {
             {[
               {
                 icon: <Star className="w-5 h-5 text-yellow-400" />,
-                title: 'Relationship Archetype',
-                description: 'Discover the mythic pattern that defines your dynamic — the cosmic story of your union.'
+                title: 'Partner Archetype',
+                description: 'Discover your soulmate archetype — the cosmic blueprint of your connection.'
               },
               {
                 icon: <Heart className="w-5 h-5 text-pink-400" />,
@@ -156,7 +156,7 @@ export default function LandingPage() {
             <div className="text-slate-500 text-sm mb-6">Always free</div>
             <ul className="space-y-3 mb-8">
               {[
-                'Relationship archetype name',
+                'Partner archetype name',
                 '3 key synastry insights',
                 'Compatibility score preview',
                 'Basic chart overview'
@@ -240,7 +240,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-wrap justify-center gap-8 items-center">
           {[
             { icon: <Shield className="w-5 h-5" />, text: 'Secure Payments via Stripe' },
-            { icon: <Zap className="w-5 h-5" />, text: 'Powered by our AI' },
+            { icon: <Zap className="w-5 h-5" />, text: 'Powered by AI' },
             { icon: <Star className="w-5 h-5" />, text: 'Precise Swiss Ephemeris Data' },
           ].map((item) => (
             <div key={item.text} className="flex items-center gap-2 text-slate-400 text-sm">

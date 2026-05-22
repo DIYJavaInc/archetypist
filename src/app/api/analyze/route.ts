@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
     // Calculate synastry aspects
     const aspects = calculateSynastryAspects(chart1, chart2)
 
-    const chartSummary1 = formatChartForPrompt(person1.name, chart1)
+    const chartSummary1 = formatChartForPrompt('You', chart1)
     const chartSummary2 = formatChartForPrompt(person2.name, chart2)
-    const aspectsSummary = formatAspectsForPrompt(aspects, person1.name, person2.name)
+    const aspectsSummary = formatAspectsForPrompt(aspects, 'You', person2.name)
 
     const harmonious = aspects.filter(a => a.nature === 'harmonious').length
     const challenging = aspects.filter(a => a.nature === 'challenging').length
@@ -82,15 +82,15 @@ KEY SYNASTRY ASPECTS:
 ${aspectsSummary}
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
-- "Highest Timeline Partner"
-- "Life Builder"
+- "Highest Timeline Soulmate"
+- "Life Builder Soulmate"
 - "Karmic Soulmate"
-- "Healing Partner"
-- "Spiritual Catalyst"
-- "Power Couple"
-- "Intense but Temporary"
-- "Addictive Chemistry"
-- "Safe Love"
+- "Healing Soulmate"
+- "Spiritual Catalyst Soulmate"
+- "Power Couple Soulmate"
+- "Intense but Temporary Soulmate"
+- "Addictive Chemistry Soulmate"
+- "Safe Love Soulmate"
 
 Choose the archetype that best fits the synastry data. Keep the description concise and direct — no flowery or poetic language.
 
@@ -158,15 +158,15 @@ KEY SYNASTRY ASPECTS:
 ${aspectsSummary}
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
-- "Highest Timeline Partner"
-- "Life Builder"
+- "Highest Timeline Soulmate"
+- "Life Builder Soulmate"
 - "Karmic Soulmate"
-- "Healing Partner"
-- "Spiritual Catalyst"
-- "Power Couple"
-- "Intense but Temporary"
-- "Addictive Chemistry"
-- "Safe Love"
+- "Healing Soulmate"
+- "Spiritual Catalyst Soulmate"
+- "Power Couple Soulmate"
+- "Intense but Temporary Soulmate"
+- "Addictive Chemistry Soulmate"
+- "Safe Love Soulmate"
 
 Choose the archetype that best fits the synastry data. Keep descriptions concise and direct — no flowery or poetic language.
 
