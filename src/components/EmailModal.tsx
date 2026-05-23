@@ -84,12 +84,6 @@ export default function EmailModal({ onSubmit, onSkip }: EmailModalProps) {
           </button>
         </form>
 
-        <button
-          onClick={onSkip}
-          className="mt-4 text-slate-600 hover:text-slate-400 text-xs transition-colors"
-        >
-          Skip for now
-        </button>
       </div>
     </div>
   )

@@ -103,10 +103,6 @@ export default function AnalyzerPage() {
     setView('results')
   }
 
-  const handleSkip = () => {
-    // Skip does NOT set the flag — modal reappears next time
-    setView('results')
-  }
 
   const handleUnlock = (priceId: string) => {
     setSelectedPriceId(priceId)
@@ -242,12 +238,6 @@ export default function AnalyzerPage() {
                   </button>
                 </form>
 
-                <button
-                  onClick={handleSkip}
-                  className="w-full mt-3 text-slate-600 hover:text-slate-400 text-xs transition-colors text-center"
-                >
-                  Skip for now
-                </button>
               </div>
             </div>
           )}
