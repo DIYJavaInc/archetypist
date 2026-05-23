@@ -5,7 +5,29 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20'
 })
 
+// The checkout page header comes from the Stripe account's business_profile.name,
+// not from checkout session params. Update it once per cold start (idempotent).
+async function ensureAccountName() {
+  try {
+    await fetch('https://api.stripe.com/v1/account', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        'business_profile[name]': 'Nova Digital',
+        'business_profile[url]': 'https://archetypist.vercel.app',
+      }).toString(),
+    })
+  } catch (err) {
+    console.warn('[checkout] account name sync failed (non-fatal):', err)
+  }
+}
+
 export async function POST(request: NextRequest) {
+  await ensureAccountName()
+
   try {
     const { priceId, sessionId } = await request.json()
 
@@ -16,15 +38,12 @@ export async function POST(request: NextRequest) {
     const isSubscription = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_MONTHLY
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    // Build line_items with explicit product names so "Archetypist" appears
-    // on the Stripe checkout page instead of the Stripe account name.
-    // price_data lets us set product_data.name independent of the dashboard.
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = isSubscription
       ? [
           {
             price_data: {
               currency: 'usd',
-              unit_amount: 999, // $9.99
+              unit_amount: 999,
               recurring: { interval: 'month' },
               product_data: {
                 name: 'Archetypist Monthly Subscription',
@@ -38,7 +57,7 @@ export async function POST(request: NextRequest) {
           {
             price_data: {
               currency: 'usd',
-              unit_amount: 1999, // $19.99
+              unit_amount: 1999,
               product_data: {
                 name: 'Archetypist One-Time Report',
                 description: 'Complete synastry analysis and relationship archetype reading',
@@ -54,9 +73,7 @@ export async function POST(request: NextRequest) {
       mode: isSubscription ? 'subscription' : 'payment',
       success_url: `${appUrl}/analyzer?payment=success&session_id=${sessionId}&stripe_session={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/analyzer?payment=cancelled`,
-      metadata: {
-        analysisSessionId: sessionId,
-      },
+      metadata: { analysisSessionId: sessionId },
       allow_promotion_codes: true,
     }
 
