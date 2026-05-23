@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Stars } from 'lucide-react'
 import StripeProvider from '@/components/StripeProvider'
@@ -10,6 +10,8 @@ import PaymentModal from '@/components/PaymentModal'
 import EmailModal from '@/components/EmailModal'
 import type { PersonData } from '@/lib/supabase'
 
+// To reset the email gate during testing, run in browser console:
+//   localStorage.removeItem('archetypist_email_captured')
 const EMAIL_CAPTURED_KEY = 'archetypist_email_captured'
 
 export interface AnalysisResult {
@@ -43,12 +45,6 @@ export default function AnalyzerPage() {
   const [formData, setFormData] = useState<{ person1: PersonData; person2: PersonData } | null>(null)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
-  // Check if this browser has already submitted an email
-  const [emailAlreadyCaptured, setEmailAlreadyCaptured] = useState(false)
-  useEffect(() => {
-    setEmailAlreadyCaptured(localStorage.getItem(EMAIL_CAPTURED_KEY) === 'true')
-  }, [])
-
   const handleAnalyze = async (person1: PersonData, person2: PersonData) => {
     setIsLoading(true)
     setFormData({ person1, person2 })
@@ -65,8 +61,10 @@ export default function AnalyzerPage() {
       const data = await response.json()
       setResult(data)
 
-      // Show email modal only if this browser hasn't submitted an email before
-      if (!emailAlreadyCaptured) {
+      // Read localStorage directly — avoids stale closure issues with state
+      const alreadyCaptured = localStorage.getItem(EMAIL_CAPTURED_KEY) === 'true'
+      console.log('[email-gate] already captured:', alreadyCaptured, '→ showing modal:', !alreadyCaptured)
+      if (!alreadyCaptured) {
         setShowEmailModal(true)
       }
     } catch (error) {
@@ -78,19 +76,27 @@ export default function AnalyzerPage() {
   }
 
   const handleEmailSubmit = async (email: string) => {
-    await fetch('/api/capture-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    // Mark as captured regardless of API result so the modal doesn't re-appear
+    console.log('[email-gate] submitting email:', email)
+    try {
+      const res = await fetch('/api/capture-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const json = await res.json()
+      console.log('[email-gate] API response:', json)
+    } catch (err) {
+      console.warn('[email-gate] API call failed (non-fatal):', err)
+    }
+    // Set flag regardless of API result so modal never re-appears on this device
     localStorage.setItem(EMAIL_CAPTURED_KEY, 'true')
-    setEmailAlreadyCaptured(true)
     setShowEmailModal(false)
   }
 
   const handleEmailSkip = () => {
+    console.log('[email-gate] user skipped email modal')
     setShowEmailModal(false)
+    // Do NOT set localStorage flag on skip — they'll see the modal next analysis
   }
 
   const handleUnlock = (priceId: string) => {
@@ -162,6 +168,7 @@ export default function AnalyzerPage() {
           )}
         </main>
 
+        {/* Email gate — renders on top of ResultsDisplay after analysis */}
         {showEmailModal && (
           <EmailModal
             onSubmit={handleEmailSubmit}
