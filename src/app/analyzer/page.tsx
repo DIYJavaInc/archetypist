@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Stars } from 'lucide-react'
 import StripeProvider from '@/components/StripeProvider'
 import AnalyzerForm from '@/components/AnalyzerForm'
 import ResultsDisplay from '@/components/ResultsDisplay'
 import PaymentModal from '@/components/PaymentModal'
+import EmailModal from '@/components/EmailModal'
 import type { PersonData } from '@/lib/supabase'
+
+const EMAIL_CAPTURED_KEY = 'archetypist_email_captured'
 
 export interface AnalysisResult {
   sessionId: string
@@ -38,6 +41,13 @@ export default function AnalyzerPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedPriceId, setSelectedPriceId] = useState<string>('')
   const [formData, setFormData] = useState<{ person1: PersonData; person2: PersonData } | null>(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+
+  // Check if this browser has already submitted an email
+  const [emailAlreadyCaptured, setEmailAlreadyCaptured] = useState(false)
+  useEffect(() => {
+    setEmailAlreadyCaptured(localStorage.getItem(EMAIL_CAPTURED_KEY) === 'true')
+  }, [])
 
   const handleAnalyze = async (person1: PersonData, person2: PersonData) => {
     setIsLoading(true)
@@ -50,18 +60,37 @@ export default function AnalyzerPage() {
         body: JSON.stringify({ person1, person2, tier: 'free' })
       })
 
-      if (!response.ok) {
-        throw new Error('Analysis failed')
-      }
+      if (!response.ok) throw new Error('Analysis failed')
 
       const data = await response.json()
       setResult(data)
+
+      // Show email modal only if this browser hasn't submitted an email before
+      if (!emailAlreadyCaptured) {
+        setShowEmailModal(true)
+      }
     } catch (error) {
       console.error('Analysis error:', error)
       alert('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleEmailSubmit = async (email: string) => {
+    await fetch('/api/capture-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    // Mark as captured regardless of API result so the modal doesn't re-appear
+    localStorage.setItem(EMAIL_CAPTURED_KEY, 'true')
+    setEmailAlreadyCaptured(true)
+    setShowEmailModal(false)
+  }
+
+  const handleEmailSkip = () => {
+    setShowEmailModal(false)
   }
 
   const handleUnlock = (priceId: string) => {
@@ -128,10 +157,17 @@ export default function AnalyzerPage() {
             <ResultsDisplay
               result={result}
               onUnlock={handleUnlock}
-              onReset={() => setResult(null)}
+              onReset={() => { setResult(null); setShowEmailModal(false) }}
             />
           )}
         </main>
+
+        {showEmailModal && (
+          <EmailModal
+            onSubmit={handleEmailSubmit}
+            onSkip={handleEmailSkip}
+          />
+        )}
 
         {showPaymentModal && (
           <PaymentModal
