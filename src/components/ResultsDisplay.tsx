@@ -2,6 +2,7 @@
 
 import { Star, Heart, Lock, RotateCcw, Zap, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react'
 import type { AnalysisResult } from '@/app/analyzer/page'
+import ShareSection from './ShareSection'
 
 interface ResultsDisplayProps {
   result: AnalysisResult
@@ -96,6 +97,9 @@ export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDis
           ))}
         </div>
       </div>
+
+      {/* Social sharing */}
+      <ShareSection archetype={result.archetype} compatibilityScore={result.compatibilityScore} />
 
       {/* Full Analysis (Premium) */}
       {result.fullAnalysis ? (
