@@ -22,6 +22,9 @@ export interface NatalChart {
   mars: PlanetPosition
   jupiter: PlanetPosition
   saturn: PlanetPosition
+  neptune?: PlanetPosition
+  pluto?: PlanetPosition
+  northNode?: PlanetPosition
   ascendant?: PlanetPosition
 }
 
@@ -150,6 +153,25 @@ function mapApiResponseToChart(
     }
   }
 
+  const findPlanetByNames = (...names: string[]): PlanetPosition | undefined => {
+    for (const name of names) {
+      const planet = Object.values(data).find(
+        p => typeof p === 'object' && p.name?.toLowerCase() === name.toLowerCase()
+      )
+      if (planet) {
+        const abs = ((planet.fullDegree % 360) + 360) % 360
+        return {
+          name: planet.name,
+          sign: planet.sign,
+          degree: abs % 30,
+          absoluteDegree: abs,
+          retrograde: planet.isRetro === 'true'
+        }
+      }
+    }
+    return undefined
+  }
+
   return {
     sun: findPlanet('Sun'),
     moon: findPlanet('Moon'),
@@ -158,6 +180,9 @@ function mapApiResponseToChart(
     mars: findPlanet('Mars'),
     jupiter: findPlanet('Jupiter'),
     saturn: findPlanet('Saturn'),
+    neptune: findPlanetByNames('Neptune'),
+    pluto: findPlanetByNames('Pluto'),
+    northNode: findPlanetByNames('Rahu', 'North Node', 'True Node'),
   }
 }
 
@@ -317,6 +342,23 @@ function calculateChartAccurate(
     0.055546 - 9.499e-9 * d, rev(316.9670 + 0.0334442282 * d)
   ), sun)
 
+  // Neptune — Paul Schlyter Keplerian elements
+  const neptuneLon = toGeocentric(helioXY(
+    rev(131.7806 + 3.0173e-5 * d), 1.7700 - 2.75e-7 * d,
+    rev(272.8461 - 6.027e-6 * d), 30.05826 + 3.313e-8 * d,
+    0.008606 + 2.15e-9 * d, rev(260.2471 + 0.005995147 * d)
+  ), sun)
+
+  // Pluto — Paul Schlyter Keplerian elements
+  const plutoLon = toGeocentric(helioXY(
+    rev(110.30807 + 1.39720e-5 * d), 17.14175 + 1.126e-6 * d,
+    rev(113.76329 + 2.035e-5 * d), 39.48168677 - 2.76e-8 * d,
+    0.24880766 + 1.7e-8 * d, rev(14.53470 + 0.00394254060 * d)
+  ), sun)
+
+  // Mean Ascending North Node (regresses ~19.35°/year)
+  const northNodeLon = rev(125.0445479 - 0.0529539 * d)
+
   return {
     sun: lonToPosition(sun.lon, 'Sun'),
     moon: lonToPosition(moonLon, 'Moon'),
@@ -325,6 +367,9 @@ function calculateChartAccurate(
     mars: lonToPosition(marsLon, 'Mars'),
     jupiter: lonToPosition(jupiterLon, 'Jupiter'),
     saturn: lonToPosition(saturnLon, 'Saturn'),
+    neptune: lonToPosition(neptuneLon, 'Neptune'),
+    pluto: lonToPosition(plutoLon, 'Pluto'),
+    northNode: lonToPosition(northNodeLon, 'North Node'),
   }
 }
 
@@ -376,7 +421,7 @@ export function formatChartForPrompt(name: string, chart: NatalChart): string {
   const fmt = (p: PlanetPosition) =>
     `${p.name}: ${p.sign} ${p.degree.toFixed(2)}° (${p.absoluteDegree.toFixed(2)}° ecliptic)${p.retrograde ? ' Rx' : ''}`
 
-  return [
+  const lines = [
     `${name}:`,
     fmt(chart.sun),
     fmt(chart.moon),
@@ -385,7 +430,11 @@ export function formatChartForPrompt(name: string, chart: NatalChart): string {
     fmt(chart.mars),
     fmt(chart.jupiter),
     fmt(chart.saturn),
-  ].join('\n')
+  ]
+  if (chart.neptune)  lines.push(fmt(chart.neptune))
+  if (chart.pluto)    lines.push(fmt(chart.pluto))
+  if (chart.northNode) lines.push(fmt(chart.northNode))
+  return lines.join('\n')
 }
 
 export function formatAspectsForPrompt(

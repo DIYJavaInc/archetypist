@@ -6,7 +6,8 @@ import {
   getNatalChart,
   calculateSynastryAspects,
   formatChartForPrompt,
-  formatAspectsForPrompt
+  formatAspectsForPrompt,
+  type SynastryAspect
 } from '@/lib/astrology'
 
 const anthropic = new Anthropic({
@@ -15,6 +16,81 @@ const anthropic = new Anthropic({
 
 function generateSessionId(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+// ── Twin Flame Detection ──────────────────────────────────────────────────────
+
+interface TwinFlameResult {
+  score: number
+  hasSunMoonConjunction: boolean
+  reasons: string[]
+}
+
+const PERSONAL_PLANETS = new Set(['sun', 'moon', 'mercury', 'venus', 'mars'])
+
+function detectTwinFlameIndicators(aspects: SynastryAspect[]): TwinFlameResult {
+  let score = 0
+  let hasSunMoonConjunction = false
+  const reasons: string[] = []
+
+  for (const a of aspects) {
+    const { planet1Key: k1, planet2Key: k2, aspect: asp, orb } = a
+    const tight = orb <= 3
+
+    // Sun-Moon conjunction ≤ 3° — rarest indicator, counts double
+    if (tight && asp === 'Conjunction' &&
+        ((k1 === 'sun' && k2 === 'moon') || (k1 === 'moon' && k2 === 'sun'))) {
+      hasSunMoonConjunction = true
+      score += 2
+      reasons.push(`Sun-Moon conjunction (${orb.toFixed(1)}° orb) — the rarest twin flame signature`)
+      continue
+    }
+
+    if (!tight) continue
+
+    // Venus-Mars conjunction — magnetic soul attraction
+    if (asp === 'Conjunction' &&
+        ((k1 === 'venus' && k2 === 'mars') || (k1 === 'mars' && k2 === 'venus'))) {
+      score++
+      reasons.push(`Venus-Mars conjunction (${orb.toFixed(1)}° orb) — magnetic soul attraction`)
+    }
+
+    // Pluto conjunct/square/opposite a personal planet — transformation pressure
+    if ((asp === 'Conjunction' || asp === 'Square' || asp === 'Opposition') &&
+        ((k1 === 'pluto' && PERSONAL_PLANETS.has(k2)) ||
+         (k2 === 'pluto' && PERSONAL_PLANETS.has(k1)))) {
+      score++
+      const other = k1 === 'pluto' ? a.planet2Label : a.planet1Label
+      reasons.push(`Pluto ${asp.toLowerCase()} ${other} (${orb.toFixed(1)}° orb) — soul-level transformation`)
+    }
+
+    // Saturn conjunct a personal planet — karmic soul contract
+    if (asp === 'Conjunction' &&
+        ((k1 === 'saturn' && PERSONAL_PLANETS.has(k2)) ||
+         (k2 === 'saturn' && PERSONAL_PLANETS.has(k1)))) {
+      score++
+      const other = k1 === 'saturn' ? a.planet2Label : a.planet1Label
+      reasons.push(`Saturn conjunct ${other} (${orb.toFixed(1)}° orb) — karmic soul contract`)
+    }
+
+    // Neptune conjunct a personal planet — spiritual merging
+    if (asp === 'Conjunction' &&
+        ((k1 === 'neptune' && PERSONAL_PLANETS.has(k2)) ||
+         (k2 === 'neptune' && PERSONAL_PLANETS.has(k1)))) {
+      score++
+      const other = k1 === 'neptune' ? a.planet2Label : a.planet1Label
+      reasons.push(`Neptune conjunct ${other} (${orb.toFixed(1)}° orb) — spiritual soul merging`)
+    }
+
+    // North Node conjunction — destined meeting
+    if (asp === 'Conjunction' && (k1 === 'northNode' || k2 === 'northNode')) {
+      score++
+      const other = k1 === 'northNode' ? a.planet2Label : a.planet1Label
+      reasons.push(`North Node conjunct ${other} (${orb.toFixed(1)}° orb) — fated, destined meeting`)
+    }
+  }
+
+  return { score, hasSunMoonConjunction, reasons }
 }
 
 export async function POST(request: NextRequest) {
@@ -65,14 +141,39 @@ export async function POST(request: NextRequest) {
 
     const harmonious = aspects.filter(a => a.nature === 'harmonious').length
     const challenging = aspects.filter(a => a.nature === 'challenging').length
-    const compatibilityScore = Math.min(100, Math.round(
-      50 + (harmonious * 5) - (challenging * 3) + Math.floor(Math.random() * 10)
-    ))
+    const baseScore = Math.round(50 + (harmonious * 5) - (challenging * 3) + Math.floor(Math.random() * 10))
+
+    // Twin flame detection — runs before prompts so it can inject override instructions
+    const tfResult = detectTwinFlameIndicators(aspects)
+    const isTwinFlame = tfResult.hasSunMoonConjunction || tfResult.score >= 4
+    const compatibilityScore = isTwinFlame
+      ? Math.min(95, Math.max(75, 65 + tfResult.score * 5))
+      : Math.min(100, baseScore)
+
+    const twinFlameOverrideBlock = isTwinFlame ? `
+TWIN FLAME OVERRIDE — MANDATORY:
+The synastry data contains ${tfResult.score} twin flame indicator(s): ${tfResult.reasons.join(' | ')}.
+You MUST set the archetype to "Twin Flame Soulmate". Do NOT choose any other archetype.
+${tfResult.hasSunMoonConjunction ? 'A Sun-Moon conjunction is present — this is the rarest and most definitive twin flame signature.' : ''}
+For the insights, highlight these specific twin flame aspects and their significance.
+For the archetypeDescription, convey: fated meeting, soul-level transformation, karmic depth, and that this connection requires conscious work.
+` : ''
+
+    const ARCHETYPE_LIST = `- "Twin Flame Soulmate"
+- "Highest Timeline Soulmate"
+- "Life Builder Soulmate"
+- "Karmic Soulmate"
+- "Healing Partner Soulmate"
+- "Spiritual Catalyst Soulmate"
+- "Power Couple"
+- "Intense but Temporary Soulmate"
+- "Addictive Chemistry Soulmate"
+- "Safe Love Soulmate"`
 
     if (tier === 'free') {
       // Free analysis: archetype + 3 insights
       const freePrompt = `You are an expert astrologer analyzing synastry. Base your entire analysis STRICTLY on the data below — no assumptions.
-
+${twinFlameOverrideBlock}
 CHART POSITIONS (sign, degree in sign, ecliptic longitude):
 ${chartSummary1}
 
@@ -88,19 +189,11 @@ CRITICAL RULES — MUST FOLLOW:
 4. If no aspects are listed for a planet pair, do not mention an aspect between them.
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
-- "Highest Timeline Soulmate"
-- "Life Builder Soulmate"
-- "Karmic Soulmate"
-- "Healing Partner Soulmate"
-- "Spiritual Catalyst Soulmate"
-- "Power Couple"
-- "Intense but Temporary Soulmate"
-- "Addictive Chemistry Soulmate"
-- "Safe Love Soulmate"
+${ARCHETYPE_LIST}
 
 Provide a JSON response with exactly this structure:
 {
-  "archetype": "One of the nine archetypes listed above (exact string match)",
+  "archetype": "One of the ten archetypes listed above (exact string match)",
   "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
   "insights": [
     "Cite a specific confirmed aspect with exact degrees and orb",
@@ -150,7 +243,7 @@ Provide a JSON response with exactly this structure:
     } else {
       // Premium analysis: full reading
       const premiumPrompt = `You are a master astrologer providing a comprehensive synastry reading. Base your entire analysis STRICTLY on the data below — no assumptions.
-
+${twinFlameOverrideBlock}
 CHART POSITIONS (sign, degree in sign, ecliptic longitude):
 ${chartSummary1}
 
@@ -167,19 +260,11 @@ CRITICAL RULES — MUST FOLLOW:
 5. Score fields (0–100) should reflect actual aspect quality: tight harmonious aspects = high score, no aspect = 50, challenging aspects = lower.
 
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
-- "Highest Timeline Soulmate"
-- "Life Builder Soulmate"
-- "Karmic Soulmate"
-- "Healing Partner Soulmate"
-- "Spiritual Catalyst Soulmate"
-- "Power Couple"
-- "Intense but Temporary Soulmate"
-- "Addictive Chemistry Soulmate"
-- "Safe Love Soulmate"
+${ARCHETYPE_LIST}
 
 Provide a detailed JSON response with this EXACT structure (all fields required):
 {
-  "archetype": "One of the nine archetypes listed above (exact string match)",
+  "archetype": "One of the ten archetypes listed above (exact string match)",
   "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words)",
   "insights": [
     "Cite confirmed aspect 1 with exact degrees and orb",
