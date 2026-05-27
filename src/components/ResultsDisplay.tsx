@@ -1,8 +1,9 @@
 'use client'
 
-import { Star, Heart, Lock, RotateCcw, Zap, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react'
+import { Star, Heart, Lock, RotateCcw, Zap, TrendingUp, AlertCircle, CheckCircle, AlertTriangle, ShieldCheck, Phone } from 'lucide-react'
 import type { AnalysisResult } from '@/app/analyzer/page'
 import ShareSection from './ShareSection'
+import { getArchetypeSafety, type RiskLevel } from '@/lib/archetype-safety'
 
 interface ResultsDisplayProps {
   result: AnalysisResult
@@ -64,6 +65,117 @@ function AspectCard({ title, aspect, description, score }: {
   )
 }
 
+// ── Safety components ─────────────────────────────────────────────────────────
+
+const RISK_STYLES: Record<RiskLevel, { border: string; bg: string; icon: React.ReactNode; label: string }> = {
+  high: {
+    border: 'border-red-700/40',
+    bg: 'bg-red-950/30',
+    icon: <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />,
+    label: 'text-red-400',
+  },
+  moderate: {
+    border: 'border-amber-700/40',
+    bg: 'bg-amber-950/20',
+    icon: <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />,
+    label: 'text-amber-400',
+  },
+  low: {
+    border: 'border-emerald-700/30',
+    bg: 'bg-emerald-950/20',
+    icon: <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />,
+    label: 'text-emerald-400',
+  },
+}
+
+function ArchetypeSafetyCard({ archetype }: { archetype: string }) {
+  const safety = getArchetypeSafety(archetype)
+  if (!safety) return null
+  const s = RISK_STYLES[safety.riskLevel]
+
+  return (
+    <details className={`rounded-2xl border ${s.border} ${s.bg} group`}>
+      <summary className="flex items-center gap-2 px-5 py-4 cursor-pointer list-none select-none">
+        {s.icon}
+        <span className={`text-sm font-semibold ${s.label}`}>{safety.awarenessTitle}</span>
+        <span className="ml-auto text-slate-500 text-sm group-open:rotate-180 transition-transform">›</span>
+      </summary>
+      <div className="px-5 pb-5 space-y-3">
+        <p className="text-slate-300 text-sm leading-relaxed">{safety.intro}</p>
+        <ul className="space-y-1.5">
+          {safety.redFlags.map((flag, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+              <span className={`mt-0.5 ${safety.riskLevel === 'low' ? 'text-emerald-500' : 'text-red-500'}`}>
+                {safety.riskLevel === 'low' ? '›' : '✗'}
+              </span>
+              {flag}
+            </li>
+          ))}
+        </ul>
+        <p className="text-slate-300 text-sm italic">{safety.closingNote}</p>
+        {safety.riskLevel !== 'low' && (
+          <div className="flex items-center gap-2 mt-1 pt-3 border-t border-slate-700/50">
+            <Phone className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <p className="text-slate-500 text-xs">
+              National Domestic Violence Hotline: <span className="text-white font-medium">1-800-799-7233</span>
+              {' '}· Crisis Text Line: text <span className="text-white font-medium">HOME</span> to <span className="text-white font-medium">741741</span>
+            </p>
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
+function GlobalSafetyBanner() {
+  return (
+    <details className="rounded-2xl border border-amber-700/30 bg-amber-950/10 group">
+      <summary className="flex items-center gap-2 px-5 py-4 cursor-pointer list-none select-none">
+        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+        <span className="text-sm font-semibold text-amber-400">Safety Reminder</span>
+        <span className="text-slate-500 text-xs ml-2">— expand to read</span>
+        <span className="ml-auto text-slate-500 text-sm group-open:rotate-180 transition-transform">›</span>
+      </summary>
+      <div className="px-5 pb-5 space-y-3">
+        <p className="text-slate-300 text-sm font-semibold">No archetype justifies abuse. Being "fated" together does not mean staying in harm.</p>
+        <ul className="space-y-1.5">
+          {[
+            'Controlling behavior or possessiveness',
+            'Physical aggression or threats of any kind',
+            'Isolation from your friends and family',
+            'Financial control or manipulation',
+            'Gaslighting — making you doubt your own reality',
+            'Using astrology or spirituality to justify harm',
+          ].map((flag) => (
+            <li key={flag} className="flex items-start gap-2 text-sm text-slate-400">
+              <span className="text-red-500 mt-0.5">✗</span>
+              {flag}
+            </li>
+          ))}
+        </ul>
+        <p className="text-slate-300 text-sm font-medium">If you experience any of these, please reach out:</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex items-center gap-2 bg-slate-800/60 rounded-lg px-4 py-2.5">
+            <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-xs text-slate-500">National DV Hotline</p>
+              <p className="text-white text-sm font-semibold">1-800-799-7233</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-800/60 rounded-lg px-4 py-2.5">
+            <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-xs text-slate-500">Crisis Text Line</p>
+              <p className="text-white text-sm font-semibold">Text HOME to 741741</p>
+            </div>
+          </div>
+        </div>
+        <p className="text-slate-400 text-xs italic">Your safety matters. You deserve respect. Always.</p>
+      </div>
+    </details>
+  )
+}
+
 export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDisplayProps) {
   return (
     <div className="space-y-8">
@@ -101,9 +213,15 @@ export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDis
       {/* Social sharing */}
       <ShareSection archetype={result.archetype} compatibilityScore={result.compatibilityScore} />
 
+      {/* Archetype-specific safety awareness */}
+      <ArchetypeSafetyCard archetype={result.archetype} />
+
       {/* Full Analysis (Premium) */}
       {result.fullAnalysis ? (
         <div className="space-y-6">
+          {/* Global safety banner — shown at top of full premium reading */}
+          <GlobalSafetyBanner />
+
           {/* Overview */}
           <div className="glass-card rounded-2xl p-6 border border-purple-700/20">
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
