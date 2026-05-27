@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Calendar, Clock, MapPin, Loader2, Stars } from 'lucide-react'
+import { User, Calendar, Clock, MapPin, Loader2, Stars, X } from 'lucide-react'
 import type { PersonData } from '@/lib/supabase'
 
 interface AnalyzerFormProps {
@@ -64,12 +64,24 @@ function PersonForm({ person, setPerson, label, color }: PersonFormProps) {
               <span className="text-slate-600 text-xs ml-1">(optional)</span>
             </span>
           </label>
-          <input
-            type="time"
-            value={person.time}
-            onChange={e => setPerson({ ...person, time: e.target.value })}
-            className={`w-full bg-slate-800 border border-slate-700 ${focusColor} focus:outline-none rounded-lg px-4 py-3 text-sm text-white transition-colors [color-scheme:dark]`}
-          />
+          <div className="relative">
+            <input
+              type="time"
+              value={person.time ?? ''}
+              onChange={e => setPerson({ ...person, time: e.target.value })}
+              className={`w-full bg-slate-800 border border-slate-700 ${focusColor} focus:outline-none rounded-lg px-4 py-3 text-sm text-white transition-colors [color-scheme:dark] ${person.time ? 'pr-10' : ''}`}
+            />
+            {person.time && (
+              <button
+                type="button"
+                onClick={() => setPerson({ ...person, time: '' })}
+                aria-label="Clear birth time"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <p className="text-slate-600 text-xs mt-1">Improves accuracy for Moon &amp; Ascendant</p>
         </div>
 
