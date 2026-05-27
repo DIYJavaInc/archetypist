@@ -118,7 +118,7 @@ function ArchetypeSafetyCard({ archetype }: { archetype: string }) {
             <Phone className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
             <p className="text-slate-500 text-xs">
               National Domestic Violence Hotline: <span className="text-white font-medium">1-800-799-7233</span>
-              {' '}· Crisis Text Line: text <span className="text-white font-medium">HOME</span> to <span className="text-white font-medium">741741</span>
+              {' '}· Crisis Text Line: text <span className="text-white font-medium">LOVEIS</span> to <span className="text-white font-medium">22522</span>
             </p>
           </div>
         )}
@@ -166,7 +166,7 @@ function GlobalSafetyBanner() {
             <Phone className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
             <div>
               <p className="text-xs text-slate-500">Crisis Text Line</p>
-              <p className="text-white text-sm font-semibold">Text HOME to 741741</p>
+              <p className="text-white text-sm font-semibold">Text LOVEIS to 22522</p>
             </div>
           </div>
         </div>
