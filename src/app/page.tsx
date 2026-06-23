@@ -51,12 +51,10 @@ export default function LandingPage() {
               <ChevronRight className="w-5 h-5" />
             </Link>
             <a
-              href="https://chromewebstore.google.com/detail/budget-spree/"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#how-it-works"
               className="inline-flex items-center gap-2 border border-slate-700 text-slate-300 px-8 py-4 rounded-full text-lg font-semibold hover:border-purple-600 hover:text-white transition-all"
             >
-              Download Free for Chrome
+              How It Works
             </a>
           </div>
 
