@@ -9,23 +9,6 @@ export interface ArchetypeSafety {
 }
 
 const SAFETY: Record<string, ArchetypeSafety> = {
-  'Twin Flame Soulmate': {
-    riskLevel: 'high',
-    awarenessTitle: 'Twin Flame Awareness',
-    intro:
-      'Twin flame intensity is real — and powerful. But intensity is not love, and "destined" connections can still be harmful.',
-    redFlags: [
-      'Controlling behavior or possessiveness',
-      'Isolation from friends and family',
-      'Physical aggression or threats',
-      'Financial control or withholding',
-      'Gaslighting or emotional manipulation',
-      'Using "twin flame destiny" to justify harmful behavior',
-      '"We\'re too spiritual to break up" — used to trap you',
-    ],
-    closingNote:
-      'Being fated together does not mean staying in harm. Your safety matters more than any destiny.',
-  },
   'Addictive Chemistry Soulmate': {
     riskLevel: 'high',
     awarenessTitle: 'Addictive Chemistry Awareness',
