@@ -7,8 +7,8 @@ import {
   calculateSynastryAspects,
   formatChartForPrompt,
   formatAspectsForPrompt,
-  type SynastryAspect
 } from '@/lib/astrology'
+import { computeArchetypeScores, buildPromptHint } from '@/lib/archetype-scoring'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!
@@ -16,65 +16,6 @@ const anthropic = new Anthropic({
 
 function generateSessionId(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
-function computeArchetypeHint(aspects: SynastryAspect[]): string {
-  const PERSONAL = new Set(['sun', 'moon', 'venus', 'mars', 'mercury'])
-  const KARMIC_PLANETS = new Set(['saturn', 'pluto'])
-  const GROWTH_PLANETS = new Set(['jupiter', 'northNode'])
-
-  // Personal-to-personal harmonious aspects or conjunctions (orb ≤ 6°) — emotional warmth/bonding
-  const warmthIndicators = aspects.filter(a =>
-    a.orb <= 6 &&
-    PERSONAL.has(a.planet1Key) &&
-    PERSONAL.has(a.planet2Key) &&
-    (a.nature === 'harmonious' || a.aspect === 'Conjunction')
-  )
-
-  // Saturn/Pluto hard aspects (square/opposition) to personal planets (orb ≤ 6°) — karmic friction
-  const karmicFriction = aspects.filter(a => {
-    const k1 = KARMIC_PLANETS.has(a.planet1Key), p2 = PERSONAL.has(a.planet2Key)
-    const k2 = KARMIC_PLANETS.has(a.planet2Key), p1 = PERSONAL.has(a.planet1Key)
-    return a.nature === 'challenging' && a.orb <= 6 && ((k1 && p2) || (k2 && p1))
-  })
-
-  // Jupiter/North Node in harmonious aspect to a personal planet (orb ≤ 5°) — growth and destiny
-  const growthAspects = aspects.filter(a =>
-    a.nature === 'harmonious' &&
-    a.orb <= 5 &&
-    (PERSONAL.has(a.planet1Key) || PERSONAL.has(a.planet2Key)) &&
-    (GROWTH_PLANETS.has(a.planet1Key) || GROWTH_PLANETS.has(a.planet2Key))
-  )
-
-  const totalH = aspects.filter(a => a.nature === 'harmonious').length
-  const totalC = aspects.filter(a => a.nature === 'challenging').length
-  const warmth = warmthIndicators.length
-  const karma = karmicFriction.length
-  const growth = growthAspects.length
-
-  let hint = `Scoring context (computed from actual aspects):\n`
-  hint += `- Overall balance: ${totalH} harmonious vs ${totalC} challenging\n`
-  hint += `- Tight personal-planet warmth indicators (orb≤6°): ${warmth} [Venus/Moon/Sun conjunctions/trines/sextiles between charts]\n`
-  hint += `- Karmic friction — Saturn/Pluto hard aspects to personal planets (orb≤6°): ${karma}\n`
-  hint += `- Growth/destiny — Jupiter or North Node harmonious to personal planet (orb≤5°): ${growth}\n`
-
-  if (karma >= 3 && warmth <= 2) {
-    hint += `- ARCHETYPE GUIDANCE: High friction, limited warmth → Karmic, Intense, or Addictive archetypes are appropriate.\n`
-  } else if (warmth >= 3 && karma <= 1 && growth >= 2) {
-    hint += `- ARCHETYPE GUIDANCE: Strong warmth AND growth energy with minimal friction → Highest Timeline Soulmate is most appropriate. Do NOT choose Karmic.\n`
-  } else if (warmth >= 4 && karma <= 1) {
-    hint += `- ARCHETYPE GUIDANCE: Very high warmth indicators, low friction → Life Builder or Highest Timeline. Do NOT choose Karmic.\n`
-  } else if (warmth >= 3 && karma <= 1) {
-    hint += `- ARCHETYPE GUIDANCE: Good warmth with minimal karmic friction → Life Builder Soulmate or Healing Partner. Do NOT choose Karmic.\n`
-  } else if (warmth >= 2 && karma >= 2 && growth >= 2) {
-    hint += `- ARCHETYPE GUIDANCE: Mixed chart with meaningful growth activation → Spiritual Catalyst or Life Builder are most appropriate. Choose Karmic ONLY if instability and push-pull patterns clearly dominate over the warmth.\n`
-  } else if (warmth >= 3 && karma >= 2) {
-    hint += `- ARCHETYPE GUIDANCE: Strong warmth coexists with some karmic friction → Life Builder or Spiritual Catalyst. Karmic requires friction to clearly outweigh warmth indicators.\n`
-  } else {
-    hint += `- ARCHETYPE GUIDANCE: Balanced chart — choose the archetype best supported by the strongest personal-planet aspects. Karmic requires friction to clearly dominate.\n`
-  }
-
-  return hint
 }
 
 export async function POST(request: NextRequest) {
@@ -116,18 +57,19 @@ export async function POST(request: NextRequest) {
       })
     ])
 
-    // Calculate synastry aspects
+    // Calculate synastry aspects and derive deterministic scoring
     const aspects = calculateSynastryAspects(chart1, chart2)
-    const archetypeHint = computeArchetypeHint(aspects)
+    const scores = computeArchetypeScores(aspects)
+    const promptHint = buildPromptHint(scores)
+
+    console.log('[analyze] scores:', JSON.stringify(scores))
 
     const chartSummary1 = formatChartForPrompt('You', chart1)
     const chartSummary2 = formatChartForPrompt(person2.name, chart2)
     const aspectsSummary = formatAspectsForPrompt(aspects, 'You', person2.name)
 
-    const harmonious = aspects.filter(a => a.nature === 'harmonious').length
-    const challenging = aspects.filter(a => a.nature === 'challenging').length
     const compatibilityScore = Math.min(100, Math.round(
-      50 + (harmonious * 5) - (challenging * 3) + Math.floor(Math.random() * 10)
+      50 + (scores.totalHarmonious * 5) - (scores.totalChallenging * 3) + Math.floor(Math.random() * 10)
     ))
 
     if (tier === 'free') {
@@ -148,8 +90,9 @@ CRITICAL RULES — MUST FOLLOW:
 3. When citing an aspect, always include the sign, degree, and orb exactly as listed (e.g., "Your Moon in Pisces 12.4° conjuncts their Sun in Pisces 18.7° — 6.3° orb").
 4. If no aspects are listed for a planet pair, do not mention an aspect between them.
 
-${archetypeHint}
-You MUST choose the archetype from EXACTLY this list — no other names allowed:
+${promptHint}
+
+The archetype you select MUST be one of these exact strings:
 - "Highest Timeline Soulmate"
 - "Life Builder Soulmate"
 - "Karmic Soulmate"
@@ -168,12 +111,14 @@ Provide a JSON response with exactly this structure:
     "Cite a specific confirmed aspect with exact degrees and orb",
     "Cite a second confirmed aspect with exact degrees and orb",
     "Describe a chart pattern or third confirmed aspect with exact degrees"
-  ]
+  ],
+  "followedScoring": true,
+  "overrideRule": null
 }`
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
-        max_tokens: 600,
+        max_tokens: 700,
         messages: [{ role: 'user', content: freePrompt }]
       })
 
@@ -182,6 +127,23 @@ Provide a JSON response with exactly this structure:
       if (!jsonMatch) throw new Error('Invalid AI response')
 
       const parsed = JSON.parse(jsonMatch[0])
+      const followedScoring = parsed.followedScoring !== false
+      const overrideRule = parsed.overrideRule ?? null
+
+      console.log('[analyze] free result:', parsed.archetype, '| followedScoring:', followedScoring, '| overrideRule:', overrideRule)
+
+      const scoringOutput = {
+        warmth: scores.warmth,
+        karma: scores.karma,
+        growth: scores.growth,
+        totalHarmonious: scores.totalHarmonious,
+        totalChallenging: scores.totalChallenging,
+        scoringRule: scores.scoringRule,
+        recommendedArchetype: scores.recommendedArchetype,
+        finalArchetype: parsed.archetype,
+        followedScoring,
+        overrideRule,
+      }
 
       // Store in Supabase
       try {
@@ -192,7 +154,7 @@ Provide a JSON response with exactly this structure:
           person2_name: person2.name,
           person1_data: { ...person1, latitude: geo1.latitude, longitude: geo1.longitude },
           person2_data: { ...person2, latitude: geo2.latitude, longitude: geo2.longitude },
-          free_analysis: { ...parsed, compatibilityScore },
+          free_analysis: { ...parsed, compatibilityScore, scoring: scoringOutput },
           payment_status: 'pending',
           tier: 'free',
           created_at: new Date().toISOString()
@@ -206,7 +168,8 @@ Provide a JSON response with exactly this structure:
         archetype: parsed.archetype,
         archetypeDescription: parsed.archetypeDescription,
         insights: parsed.insights,
-        compatibilityScore
+        compatibilityScore,
+        scoring: scoringOutput,
       })
 
     } else {
@@ -228,8 +191,9 @@ CRITICAL RULES — MUST FOLLOW:
 4. If a planetary area (e.g., Mars) has no confirmed aspect, note that instead of inventing one.
 5. Score fields (0–100) should reflect actual aspect quality: tight harmonious aspects = high score, no aspect = 50, challenging aspects = lower.
 
-${archetypeHint}
-You MUST choose the archetype from EXACTLY this list — no other names allowed:
+${promptHint}
+
+The archetype you select MUST be one of these exact strings:
 - "Highest Timeline Soulmate"
 - "Life Builder Soulmate"
 - "Karmic Soulmate"
@@ -249,6 +213,8 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
     "Cite confirmed aspect 2 with exact degrees and orb",
     "Cite confirmed aspect 3 or describe chart patterns"
   ],
+  "followedScoring": true,
+  "overrideRule": null,
   "overview": "3-4 sentence overview grounded in the confirmed aspects above",
   "sunCompatibility": {
     "aspect": "Confirmed Sun aspect (or 'no major Sun aspect detected')",
@@ -282,7 +248,7 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
-        max_tokens: 2000,
+        max_tokens: 2200,
         messages: [{ role: 'user', content: premiumPrompt }]
       })
 
@@ -291,6 +257,23 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
       if (!jsonMatch) throw new Error('Invalid AI response')
 
       const parsed = JSON.parse(jsonMatch[0])
+      const followedScoring = parsed.followedScoring !== false
+      const overrideRule = parsed.overrideRule ?? null
+
+      console.log('[analyze] premium result:', parsed.archetype, '| followedScoring:', followedScoring, '| overrideRule:', overrideRule)
+
+      const scoringOutput = {
+        warmth: scores.warmth,
+        karma: scores.karma,
+        growth: scores.growth,
+        totalHarmonious: scores.totalHarmonious,
+        totalChallenging: scores.totalChallenging,
+        scoringRule: scores.scoringRule,
+        recommendedArchetype: scores.recommendedArchetype,
+        finalArchetype: parsed.archetype,
+        followedScoring,
+        overrideRule,
+      }
 
       // Update Supabase record
       try {
@@ -305,7 +288,8 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
             archetype: parsed.archetype,
             archetypeDescription: parsed.archetypeDescription,
             insights: parsed.insights,
-            compatibilityScore
+            compatibilityScore,
+            scoring: scoringOutput,
           },
           full_analysis: parsed,
           payment_status: 'completed',
@@ -322,6 +306,7 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
         archetypeDescription: parsed.archetypeDescription,
         insights: parsed.insights,
         compatibilityScore,
+        scoring: scoringOutput,
         fullAnalysis: {
           overview: parsed.overview,
           sunCompatibility: parsed.sunCompatibility,
