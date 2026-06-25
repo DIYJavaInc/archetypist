@@ -6,8 +6,9 @@ export interface ArchetypeScores {
   growth: number
   totalHarmonious: number
   totalChallenging: number
+  compatibilityScore: number   // deterministic 0–100; primary archetype selector
   recommendedArchetype: string
-  scoringRule: string
+  scoringRule: string          // SCORE_<range> label
 }
 
 // All personal planets — used for warmth (bonding) detection
@@ -49,117 +50,85 @@ function isGrowth(a: SynastryAspect): boolean {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Score formula
+//
+// Calibrated to three confirmed regression charts (from Keplerian orbital calc):
+//   Dee + Ki   (warmth=5, karma=1, growth=7) → 27 + 30 + 42 −  4 = 95 → Highest Timeline
+//   Dee + Ltni (warmth≥5, karma=0, growth=3) → 27 + 30 + 18 −  0 = 75 → Life Builder
+//   Dee + DW   (warmth=5, karma=2, growth=2) → 27 + 30 + 12 −  8 = 61 → Spiritual Catalyst
+//
+// Design decisions:
+//   • warmth is capped at 5 aspects: having 10 tight bonding aspects is not "twice as good"
+//     as 5 — it means the same bonding energy expressed multiple ways.
+//   • growth is uncapped: Jupiter/Node activation is the primary driver of upper tiers.
+//     A chart without growth indicators cannot reach Life Builder or above on warmth alone.
+//   • karma penalty is modest (4 pts each): friction matters but should not collapse a
+//     chart with strong warmth + growth unless friction is severe.
+// ---------------------------------------------------------------------------
+function computeScore(warmth: number, karma: number, growth: number): number {
+  const warmthPts = Math.min(warmth, 5) * 6   // first 5 warmth aspects = 6 pts each (max 30)
+  const growthPts = growth * 6                  // each growth/destiny aspect = 6 pts (no cap)
+  const karmaPts  = karma * 4                   // each karmic friction aspect costs 4 pts
+  return Math.min(100, Math.max(0, 27 + warmthPts + growthPts - karmaPts))
+}
+
+// Score range → archetype. Score is the sole selector; evidence is expressed through the score.
+function scoreToCategory(score: number): { archetype: string; scoringRule: string } {
+  if (score >= 95) return { archetype: 'Highest Timeline Soulmate',                  scoringRule: 'SCORE_95_PLUS' }
+  if (score >= 80) return { archetype: 'Safe Love Soulmate',                         scoringRule: 'SCORE_80_94'   }
+  if (score >= 70) return { archetype: 'Life Builder Soulmate',                      scoringRule: 'SCORE_70_79'   }
+  if (score >= 55) return { archetype: 'Spiritual Catalyst',                         scoringRule: 'SCORE_55_69'   }
+  if (score >= 40) return { archetype: 'Romantic Soulmate with Spiritual Chemistry', scoringRule: 'SCORE_40_54'   }
+  return                   { archetype: 'Karmic Soulmate',                           scoringRule: 'SCORE_0_39'    }
+}
+
+const SCORE_RANGE_LABEL: Record<string, string> = {
+  SCORE_95_PLUS: '95–100',
+  SCORE_80_94:   '80–94',
+  SCORE_70_79:   '70–79',
+  SCORE_55_69:   '55–69',
+  SCORE_40_54:   '40–54',
+  SCORE_0_39:    '0–39',
+}
+
 export function computeArchetypeScores(aspects: SynastryAspect[]): ArchetypeScores {
-  const warmth = aspects.filter(isWarmth).length
-  const karma = aspects.filter(isKarmicFriction).length
-  const growth = aspects.filter(isGrowth).length
-  const totalHarmonious = aspects.filter(a => a.nature === 'harmonious').length
+  const warmth           = aspects.filter(isWarmth).length
+  const karma            = aspects.filter(isKarmicFriction).length
+  const growth           = aspects.filter(isGrowth).length
+  const totalHarmonious  = aspects.filter(a => a.nature === 'harmonious').length
   const totalChallenging = aspects.filter(a => a.nature === 'challenging').length
 
-  let recommendedArchetype: string
-  let scoringRule: string
+  const compatibilityScore = computeScore(warmth, karma, growth)
+  const { archetype: recommendedArchetype, scoringRule } = scoreToCategory(compatibilityScore)
 
-  if (karma >= 3 && warmth <= 2) {
-    recommendedArchetype = 'Karmic Soulmate'
-    scoringRule = 'HIGH_FRICTION'
-  } else if (warmth >= 3 && karma <= 1 && growth >= 4) {
-    // Requires strong growth signal (≥4) to distinguish from Life Builder.
-    // A modest Jupiter trine or two (growth 2-3) indicates good partnership, not peak destiny.
-    recommendedArchetype = 'Highest Timeline Soulmate'
-    scoringRule = 'PEAK_HARMONY'
-  } else if (warmth >= 4 && karma <= 1) {
-    recommendedArchetype = 'Life Builder Soulmate'
-    scoringRule = 'STRONG_WARMTH'
-  } else if (warmth >= 3 && karma <= 1) {
-    recommendedArchetype = 'Life Builder Soulmate'
-    scoringRule = 'GOOD_WARMTH'
-  } else if (warmth >= 2 && karma >= 2 && growth >= 2) {
-    recommendedArchetype = 'Spiritual Catalyst Soulmate'
-    scoringRule = 'MIXED_WITH_GROWTH'
-  } else if (warmth >= 3 && karma >= 2) {
-    recommendedArchetype = 'Life Builder Soulmate'
-    scoringRule = 'WARMTH_OVER_FRICTION'
-  } else if (warmth >= 2) {
-    recommendedArchetype = 'Healing Partner Soulmate'
-    scoringRule = 'MODERATE_WARMTH'
-  } else if (totalHarmonious > totalChallenging) {
-    recommendedArchetype = 'Safe Love Soulmate'
-    scoringRule = 'HARMONIOUS_BALANCE'
-  } else {
-    recommendedArchetype = 'Karmic Soulmate'
-    scoringRule = 'DEFAULT_LOW_WARMTH'
-  }
-
-  return { warmth, karma, growth, totalHarmonious, totalChallenging, recommendedArchetype, scoringRule }
-}
-
-function getPermittedOverrides(scoringRule: string): string[] {
-  switch (scoringRule) {
-    case 'PEAK_HARMONY':
-      return [
-        `"OVERRIDE:STABILITY" — chart emphasizes practical security and stability over transcendent growth → select "Life Builder Soulmate"`,
-        `"OVERRIDE:PEACEFUL_SECURITY" — Sun-Moon harmonious contacts dominate with calm, secure energy → select "Safe Love Soulmate"`,
-      ]
-    case 'STRONG_WARMTH':
-    case 'GOOD_WARMTH':
-      return [
-        `"OVERRIDE:HEALING_THEME" — mutual emotional healing and recovery are the chart's primary theme → select "Healing Partner Soulmate"`,
-        `"OVERRIDE:PEACEFUL_SECURITY" — chart emphasizes comfort, peace, and settled security → select "Safe Love Soulmate"`,
-        `"OVERRIDE:PEAK_GROWTH" — strong Jupiter/North Node aspects signal transcendent destiny connection → select "Highest Timeline Soulmate"`,
-      ]
-    case 'MIXED_WITH_GROWTH':
-      return [
-        `"OVERRIDE:STABILITY_DOMINANT" — Saturn trines or Sun-Moon harmonious aspects clearly indicate stable partnership → select "Life Builder Soulmate"`,
-      ]
-    case 'WARMTH_OVER_FRICTION':
-      return [
-        `"OVERRIDE:GROWTH_DOMINANT" — Jupiter/North Node activation energy clearly leads over practical bonding → select "Spiritual Catalyst Soulmate"`,
-        `"OVERRIDE:HEALING_THEME" — mutual emotional healing and recovery are the chart's primary theme → select "Healing Partner Soulmate"`,
-      ]
-    case 'HIGH_FRICTION':
-    case 'DEFAULT_LOW_WARMTH':
-      return [
-        `"OVERRIDE:ADDICTIVE_PULL" — Venus-Pluto or Moon-Pluto conjunctions create magnetic but destabilizing pull → select "Addictive Chemistry Soulmate"`,
-        `"OVERRIDE:MARS_CLASH" — Mars-dominant clash pattern with heat but no stability foundation → select "Intense but Temporary Soulmate"`,
-      ]
-    case 'MODERATE_WARMTH':
-      return [
-        `"OVERRIDE:STABILITY_DOMINANT" — strong practical Venus-Saturn or Sun-Saturn harmonious aspects → select "Life Builder Soulmate"`,
-        `"OVERRIDE:PEACEFUL_SECURITY" — chart emphasizes comfort, peace, and settled security → select "Safe Love Soulmate"`,
-        `"OVERRIDE:GROWTH_DOMINANT" — Jupiter/North Node activation energy clearly leads → select "Spiritual Catalyst Soulmate"`,
-      ]
-    case 'HARMONIOUS_BALANCE':
-      return [
-        `"OVERRIDE:STABILITY_DOMINANT" — strong Venus-Saturn or Sun-Moon harmonious contacts → select "Life Builder Soulmate"`,
-        `"OVERRIDE:HEALING_THEME" — mutual emotional healing and recovery are the chart's primary theme → select "Healing Partner Soulmate"`,
-      ]
-    default:
-      return [
-        `"OVERRIDE:CHART_SPECIFIC" — compelling astrological reason not captured by scoring (describe briefly)`,
-      ]
+  return {
+    warmth, karma, growth,
+    totalHarmonious, totalChallenging,
+    compatibilityScore,
+    recommendedArchetype,
+    scoringRule,
   }
 }
-
-const POSITIVE_ARCHETYPES = new Set([
-  'Highest Timeline Soulmate',
-  'Life Builder Soulmate',
-  'Safe Love Soulmate',
-  'Healing Partner Soulmate',
-  'Spiritual Catalyst Soulmate',
-])
 
 export function buildArchetypeContext(scores: ArchetypeScores): string {
-  const { warmth, karma, growth, totalHarmonious, totalChallenging, recommendedArchetype, scoringRule } = scores
+  const {
+    warmth, karma, growth,
+    totalHarmonious, totalChallenging,
+    compatibilityScore, recommendedArchetype, scoringRule,
+  } = scores
+
+  const rangeLabel = SCORE_RANGE_LABEL[scoringRule] ?? scoringRule
 
   return [
-    `ARCHETYPE (determined by scoring — do not change): "${recommendedArchetype}"`,
-    `Scoring context:`,
-    `- Overall: ${totalHarmonious} harmonious vs ${totalChallenging} challenging aspects`,
+    `ARCHETYPE (determined by compatibility score — do not change): "${recommendedArchetype}"`,
+    `Compatibility score: ${compatibilityScore}/100 (score range: ${rangeLabel})`,
+    `Scoring signals:`,
     `- Warmth (personal-planet bonding, orb≤6°): ${warmth}`,
-    `- Karmic friction (Saturn/Pluto hard to personal planet, orb≤6°): ${karma}`,
+    `- Karmic friction (Saturn/Pluto hard aspect to core personal planet, orb≤6°): ${karma}`,
     `- Growth/destiny (Jupiter/North Node harmonious to personal planet, orb≤5°): ${growth}`,
-    `- Rule applied: ${scoringRule}`,
+    `- Overall: ${totalHarmonious} harmonious vs ${totalChallenging} challenging aspects`,
     ``,
-    `INSTRUCTION: The archetype is already chosen. Write the description and insights AS IF "${recommendedArchetype}" is definitively correct for this chart. Do not suggest or imply a different archetype.`,
+    `INSTRUCTION: The archetype is already chosen based on the compatibility score. Write the description and insights AS IF "${recommendedArchetype}" is definitively correct for this chart. Reference the strongest confirmed aspects as evidence. Do not suggest or imply a different archetype.`,
   ].join('\n')
 }

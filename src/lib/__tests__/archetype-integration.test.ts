@@ -88,24 +88,26 @@ const LTNI: NatalChart = {
 
 // ---------------------------------------------------------------------------
 // DEE + KI — expected: Highest Timeline Soulmate
-// Dominant signals: Venus conj Ki's Moon, Venus trine Ki's Venus,
-//   Moon conj Ki's Moon + Moon trine Ki's Jupiter + Mercury trine Ki's Node
+// Strong warmth + very high growth + low karma → score ≥ 95
 // ---------------------------------------------------------------------------
 describe('Integration: Dee + Ki', () => {
   const aspects = calculateSynastryAspects(DEE, KI)
   const scores = computeArchetypeScores(aspects)
 
-  it('warmth ≥ 3 (Venus-Moon conj, Venus-Venus trine, Moon-Moon conj)', () =>
-    expect(scores.warmth).toBeGreaterThanOrEqual(3))
+  it('warmth ≥ 5 (Venus-Moon conj, Venus-Venus trine, Moon-Moon conj, + more)', () =>
+    expect(scores.warmth).toBeGreaterThanOrEqual(5))
 
-  it('karma ≤ 1 (only Moon-Pluto sq within 6°)', () =>
+  it('karma ≤ 1 (only Moon-Pluto sq qualifies after VULNERABLE filter)', () =>
     expect(scores.karma).toBeLessThanOrEqual(1))
 
-  it('growth ≥ 2 (Moon-Jupiter trine + Mercury-Node trine)', () =>
-    expect(scores.growth).toBeGreaterThanOrEqual(2))
+  it('growth ≥ 7 (Moon-Jupiter trine, Mercury-Node trine, and multiple others)', () =>
+    expect(scores.growth).toBeGreaterThanOrEqual(7))
 
-  it('scoringRule = PEAK_HARMONY', () =>
-    expect(scores.scoringRule).toBe('PEAK_HARMONY'))
+  it('compatibilityScore ≥ 95 (qualifies for Highest Timeline tier)', () =>
+    expect(scores.compatibilityScore).toBeGreaterThanOrEqual(95))
+
+  it('scoringRule = SCORE_95_PLUS', () =>
+    expect(scores.scoringRule).toBe('SCORE_95_PLUS'))
 
   it('recommendedArchetype = Highest Timeline Soulmate', () =>
     expect(scores.recommendedArchetype).toBe('Highest Timeline Soulmate'))
@@ -116,26 +118,34 @@ describe('Integration: Dee + Ki', () => {
 
 // ---------------------------------------------------------------------------
 // DEE + LTNI — expected: Life Builder Soulmate
-// Dominant signals: Moon conj Ltni's Sun/Mercury/Venus, Venus trine Ltni's Moon
-// Very low karma, no strong growth aspects → STRONG_WARMTH not PEAK_HARMONY
+// Dominant warmth + zero karmic friction + modest growth → score 70–79
+// Growth is below the Highest Timeline threshold — score stays in Life Builder range.
 // ---------------------------------------------------------------------------
 describe('Integration: Dee + Ltni', () => {
   const aspects = calculateSynastryAspects(DEE, LTNI)
   const scores = computeArchetypeScores(aspects)
 
-  it('warmth ≥ 4 (Moon conj Sun, Moon conj Mercury, Moon conj Venus, Venus trine Moon)', () =>
-    expect(scores.warmth).toBeGreaterThanOrEqual(4))
+  it('warmth ≥ 5 (multiple Moon conjunctions to Ltni personal planets, Venus trine Moon)', () =>
+    expect(scores.warmth).toBeGreaterThanOrEqual(5))
 
-  it('karma ≤ 1', () =>
-    expect(scores.karma).toBeLessThanOrEqual(1))
+  it('karma = 0 (no Saturn/Pluto hard aspects to VULNERABLE planets within 6°)', () =>
+    expect(scores.karma).toBe(0))
 
-  it('scoringRule = STRONG_WARMTH (warmth≥4, karma≤1, growth<2)', () =>
-    expect(scores.scoringRule).toBe('STRONG_WARMTH'))
+  it('growth ≤ 4 (modest Jupiter activation — not enough for Highest Timeline)', () =>
+    expect(scores.growth).toBeLessThanOrEqual(4))
+
+  it('compatibilityScore is in the 70–79 range', () => {
+    expect(scores.compatibilityScore).toBeGreaterThanOrEqual(70)
+    expect(scores.compatibilityScore).toBeLessThanOrEqual(79)
+  })
+
+  it('scoringRule = SCORE_70_79', () =>
+    expect(scores.scoringRule).toBe('SCORE_70_79'))
 
   it('recommendedArchetype = Life Builder Soulmate', () =>
     expect(scores.recommendedArchetype).toBe('Life Builder Soulmate'))
 
-  it('is NOT Highest Timeline Soulmate (growth too low)', () =>
+  it('is NOT Highest Timeline Soulmate (growth too low to drive score above 94)', () =>
     expect(scores.recommendedArchetype).not.toBe('Highest Timeline Soulmate'))
 
   it('is NOT Karmic Soulmate', () =>
@@ -143,9 +153,8 @@ describe('Integration: Dee + Ltni', () => {
 })
 
 // ---------------------------------------------------------------------------
-// DEE + DW — expected: Spiritual Catalyst Soulmate (NOT Karmic)
-// Mixed chart: Sun sextile Sun, Moon conj Mars (+warmth),
-//   Venus sq Pluto, Moon sq Pluto (+karma), Venus-Node + Node-Mercury (+growth)
+// DEE + DW — expected: Spiritual Catalyst (NOT Karmic, NOT Life Builder)
+// Mixed: warmth and growth are present but karma (2) brings score into 55–69.
 // ---------------------------------------------------------------------------
 describe('Integration: Dee + DW', () => {
   const aspects = calculateSynastryAspects(DEE, DW)
@@ -160,14 +169,22 @@ describe('Integration: Dee + DW', () => {
   it('growth ≥ 2 (Venus trine DW Node + Node trine DW Mercury)', () =>
     expect(scores.growth).toBeGreaterThanOrEqual(2))
 
-  it('scoringRule = MIXED_WITH_GROWTH', () =>
-    expect(scores.scoringRule).toBe('MIXED_WITH_GROWTH'))
+  it('compatibilityScore is in the 55–69 range', () => {
+    expect(scores.compatibilityScore).toBeGreaterThanOrEqual(55)
+    expect(scores.compatibilityScore).toBeLessThanOrEqual(69)
+  })
 
-  it('recommendedArchetype = Spiritual Catalyst Soulmate', () =>
-    expect(scores.recommendedArchetype).toBe('Spiritual Catalyst Soulmate'))
+  it('scoringRule = SCORE_55_69', () =>
+    expect(scores.scoringRule).toBe('SCORE_55_69'))
+
+  it('recommendedArchetype = Spiritual Catalyst', () =>
+    expect(scores.recommendedArchetype).toBe('Spiritual Catalyst'))
 
   it('is NOT Karmic Soulmate — friction alone does not override warmth + growth', () =>
     expect(scores.recommendedArchetype).not.toBe('Karmic Soulmate'))
+
+  it('is NOT Life Builder — score is below 70', () =>
+    expect(scores.recommendedArchetype).not.toBe('Life Builder Soulmate'))
 })
 
 // ---------------------------------------------------------------------------

@@ -65,12 +65,15 @@ export async function POST(request: NextRequest) {
     // The archetype is fixed by the scoring system before Claude is called
     const archetype = scores.recommendedArchetype
 
+    const compatibilityScore = scores.compatibilityScore
+
     const scoringOutput = {
       warmth: scores.warmth,
       karma: scores.karma,
       growth: scores.growth,
       totalHarmonious: scores.totalHarmonious,
       totalChallenging: scores.totalChallenging,
+      compatibilityScore,
       scoringRule: scores.scoringRule,
       recommendedArchetype: scores.recommendedArchetype,
       finalArchetype: scores.recommendedArchetype, // same: Claude doesn't override
@@ -82,10 +85,6 @@ export async function POST(request: NextRequest) {
     const chartSummary1 = formatChartForPrompt('You', chart1)
     const chartSummary2 = formatChartForPrompt(person2.name, chart2)
     const aspectsSummary = formatAspectsForPrompt(aspects, 'You', person2.name)
-
-    const compatibilityScore = Math.min(100, Math.round(
-      50 + (scores.totalHarmonious * 5) - (scores.totalChallenging * 3) + Math.floor(Math.random() * 10)
-    ))
 
     if (tier === 'free') {
       const freePrompt = `You are an expert astrologer writing a synastry interpretation. Base your analysis STRICTLY on the data below — no assumptions.

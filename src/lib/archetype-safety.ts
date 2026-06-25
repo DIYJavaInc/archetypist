@@ -69,6 +69,36 @@ const SAFETY: Record<string, ArchetypeSafety> = {
     closingNote:
       'Genuine spiritual connection always respects your boundaries and autonomy.',
   },
+  'Spiritual Catalyst': {
+    riskLevel: 'moderate',
+    awarenessTitle: 'Spiritual Catalyst Awareness',
+    intro:
+      'This connection invites growth and transformation — but watch for control or manipulation hiding behind spiritual language.',
+    redFlags: [
+      'Manipulation framed as "guiding your evolution"',
+      'Isolation justified as "spiritual necessity"',
+      'Gaslighting presented as "expanding your consciousness"',
+      'Behaviors hidden from friends and family',
+      'Spiritual authority used to override your own judgment',
+    ],
+    closingNote:
+      'Genuine spiritual connection always respects your boundaries and autonomy.',
+  },
+  'Romantic Soulmate with Spiritual Chemistry': {
+    riskLevel: 'moderate',
+    awarenessTitle: 'Romantic Chemistry Awareness',
+    intro:
+      'Deep romantic and spiritual pull can feel fated — but attraction alone is not a foundation for safety or respect.',
+    redFlags: [
+      'Intensity or "fate" used to justify moving too fast',
+      'Boundary violations excused as "chemistry"',
+      'Emotional highs and lows that keep you off-balance',
+      'Feeling unable to leave because the connection feels "meant to be"',
+      'Spiritual or romantic framing used to override your needs',
+    ],
+    closingNote:
+      'A connection can be meaningful and intense while still requiring clear boundaries and mutual respect.',
+  },
   'Power Couple': {
     riskLevel: 'moderate',
     awarenessTitle: 'Power Couple Awareness',

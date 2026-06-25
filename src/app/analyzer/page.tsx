@@ -17,6 +17,7 @@ export interface AnalysisScoring {
   growth: number
   totalHarmonious: number
   totalChallenging: number
+  compatibilityScore: number
   scoringRule: string
   recommendedArchetype: string
   finalArchetype: string
