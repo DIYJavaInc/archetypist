@@ -6,7 +6,8 @@ import {
   getNatalChart,
   calculateSynastryAspects,
   formatChartForPrompt,
-  formatAspectsForPrompt
+  formatAspectsForPrompt,
+  type SynastryAspect
 } from '@/lib/astrology'
 
 const anthropic = new Anthropic({
@@ -15,6 +16,65 @@ const anthropic = new Anthropic({
 
 function generateSessionId(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+function computeArchetypeHint(aspects: SynastryAspect[]): string {
+  const PERSONAL = new Set(['sun', 'moon', 'venus', 'mars', 'mercury'])
+  const KARMIC_PLANETS = new Set(['saturn', 'pluto'])
+  const GROWTH_PLANETS = new Set(['jupiter', 'northNode'])
+
+  // Personal-to-personal harmonious aspects or conjunctions (orb ≤ 6°) — emotional warmth/bonding
+  const warmthIndicators = aspects.filter(a =>
+    a.orb <= 6 &&
+    PERSONAL.has(a.planet1Key) &&
+    PERSONAL.has(a.planet2Key) &&
+    (a.nature === 'harmonious' || a.aspect === 'Conjunction')
+  )
+
+  // Saturn/Pluto hard aspects (square/opposition) to personal planets (orb ≤ 6°) — karmic friction
+  const karmicFriction = aspects.filter(a => {
+    const k1 = KARMIC_PLANETS.has(a.planet1Key), p2 = PERSONAL.has(a.planet2Key)
+    const k2 = KARMIC_PLANETS.has(a.planet2Key), p1 = PERSONAL.has(a.planet1Key)
+    return a.nature === 'challenging' && a.orb <= 6 && ((k1 && p2) || (k2 && p1))
+  })
+
+  // Jupiter/North Node in harmonious aspect to a personal planet (orb ≤ 5°) — growth and destiny
+  const growthAspects = aspects.filter(a =>
+    a.nature === 'harmonious' &&
+    a.orb <= 5 &&
+    (PERSONAL.has(a.planet1Key) || PERSONAL.has(a.planet2Key)) &&
+    (GROWTH_PLANETS.has(a.planet1Key) || GROWTH_PLANETS.has(a.planet2Key))
+  )
+
+  const totalH = aspects.filter(a => a.nature === 'harmonious').length
+  const totalC = aspects.filter(a => a.nature === 'challenging').length
+  const warmth = warmthIndicators.length
+  const karma = karmicFriction.length
+  const growth = growthAspects.length
+
+  let hint = `Scoring context (computed from actual aspects):\n`
+  hint += `- Overall balance: ${totalH} harmonious vs ${totalC} challenging\n`
+  hint += `- Tight personal-planet warmth indicators (orb≤6°): ${warmth} [Venus/Moon/Sun conjunctions/trines/sextiles between charts]\n`
+  hint += `- Karmic friction — Saturn/Pluto hard aspects to personal planets (orb≤6°): ${karma}\n`
+  hint += `- Growth/destiny — Jupiter or North Node harmonious to personal planet (orb≤5°): ${growth}\n`
+
+  if (karma >= 3 && warmth <= 2) {
+    hint += `- ARCHETYPE GUIDANCE: High friction, limited warmth → Karmic, Intense, or Addictive archetypes are appropriate.\n`
+  } else if (warmth >= 3 && karma <= 1 && growth >= 2) {
+    hint += `- ARCHETYPE GUIDANCE: Strong warmth AND growth energy with minimal friction → Highest Timeline Soulmate is most appropriate. Do NOT choose Karmic.\n`
+  } else if (warmth >= 4 && karma <= 1) {
+    hint += `- ARCHETYPE GUIDANCE: Very high warmth indicators, low friction → Life Builder or Highest Timeline. Do NOT choose Karmic.\n`
+  } else if (warmth >= 3 && karma <= 1) {
+    hint += `- ARCHETYPE GUIDANCE: Good warmth with minimal karmic friction → Life Builder Soulmate or Healing Partner. Do NOT choose Karmic.\n`
+  } else if (warmth >= 2 && karma >= 2 && growth >= 2) {
+    hint += `- ARCHETYPE GUIDANCE: Mixed chart with meaningful growth activation → Spiritual Catalyst or Life Builder are most appropriate. Choose Karmic ONLY if instability and push-pull patterns clearly dominate over the warmth.\n`
+  } else if (warmth >= 3 && karma >= 2) {
+    hint += `- ARCHETYPE GUIDANCE: Strong warmth coexists with some karmic friction → Life Builder or Spiritual Catalyst. Karmic requires friction to clearly outweigh warmth indicators.\n`
+  } else {
+    hint += `- ARCHETYPE GUIDANCE: Balanced chart — choose the archetype best supported by the strongest personal-planet aspects. Karmic requires friction to clearly dominate.\n`
+  }
+
+  return hint
 }
 
 export async function POST(request: NextRequest) {
@@ -58,6 +118,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate synastry aspects
     const aspects = calculateSynastryAspects(chart1, chart2)
+    const archetypeHint = computeArchetypeHint(aspects)
 
     const chartSummary1 = formatChartForPrompt('You', chart1)
     const chartSummary2 = formatChartForPrompt(person2.name, chart2)
@@ -87,6 +148,7 @@ CRITICAL RULES — MUST FOLLOW:
 3. When citing an aspect, always include the sign, degree, and orb exactly as listed (e.g., "Your Moon in Pisces 12.4° conjuncts their Sun in Pisces 18.7° — 6.3° orb").
 4. If no aspects are listed for a planet pair, do not mention an aspect between them.
 
+${archetypeHint}
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Highest Timeline Soulmate"
 - "Life Builder Soulmate"
@@ -166,6 +228,7 @@ CRITICAL RULES — MUST FOLLOW:
 4. If a planetary area (e.g., Mars) has no confirmed aspect, note that instead of inventing one.
 5. Score fields (0–100) should reflect actual aspect quality: tight harmonious aspects = high score, no aspect = 50, challenging aspects = lower.
 
+${archetypeHint}
 You MUST choose the archetype from EXACTLY this list — no other names allowed:
 - "Highest Timeline Soulmate"
 - "Life Builder Soulmate"
