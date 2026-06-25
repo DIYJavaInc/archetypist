@@ -11,12 +11,24 @@ import type { PersonData } from '@/lib/supabase'
 
 const EMAIL_KEY = 'archetypist_email_captured'
 
+export interface AnalysisScoring {
+  warmth: number
+  karma: number
+  growth: number
+  totalHarmonious: number
+  totalChallenging: number
+  scoringRule: string
+  recommendedArchetype: string
+  finalArchetype: string
+}
+
 export interface AnalysisResult {
   sessionId: string
-  archetype: string
+  archetype: string             // top-level convenience field — always equals scoring.finalArchetype
   archetypeDescription: string
   insights: string[]
   compatibilityScore: number
+  scoring?: AnalysisScoring     // source of truth for archetype classification
   fullAnalysis?: {
     overview: string
     sunCompatibility: { aspect: string; description: string; score: number }
@@ -63,6 +75,12 @@ export default function AnalyzerPage() {
 
       const data = await response.json()
       setResult(data)
+
+      // Debug: confirm archetype source of truth
+      console.log('[scoring] recommendedArchetype:', data.scoring?.recommendedArchetype)
+      console.log('[scoring] finalArchetype:', data.scoring?.finalArchetype)
+      console.log('[scoring] top-level archetype:', data.archetype)
+      console.log('[display] archetype shown:', data.scoring?.finalArchetype ?? data.archetype)
 
       // Read localStorage fresh — no stale state issues
       const alreadyCaptured = localStorage.getItem(EMAIL_KEY) === 'true'
@@ -182,7 +200,7 @@ export default function AnalyzerPage() {
                   <Stars className="w-3 h-3" /> Reading Complete
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold gradient-text mb-2">
-                  {result.archetype}
+                  {result.scoring?.finalArchetype ?? result.archetype}
                 </h2>
                 <p className="text-slate-400 text-sm">{result.archetypeDescription}</p>
 

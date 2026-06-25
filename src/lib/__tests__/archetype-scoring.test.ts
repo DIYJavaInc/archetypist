@@ -37,26 +37,31 @@ const DEE_KI_ASPECTS: SynastryAspect[] = [
   asp('venus', 'venus',   'Trine',       3.4, 'harmonious'),  // ← Venus trine Ki's Venus
   asp('moon',  'moon',    'Conjunction', 5.4, 'neutral'),     // ← Moon conj Ki's Moon
 
-  // Growth: Jupiter/North Node harmonious to personal planet, orb ≤ 5°
-  asp('moon',    'jupiter',   'Trine', 0.7, 'harmonious'),   // ← Moon trine Ki's Jupiter
-  asp('mercury', 'northNode', 'Trine', 0.1, 'harmonious'),   // ← Mercury trine Ki's North Node
+  // Growth: Jupiter/North Node harmonious to personal planet, orb ≤ 5° (need ≥4 for PEAK_HARMONY)
+  asp('moon',    'jupiter',   'Trine',   0.7, 'harmonious'),  // ← Moon trine Ki's Jupiter
+  asp('mercury', 'northNode', 'Trine',   0.1, 'harmonious'),  // ← Mercury trine Ki's North Node
+  asp('sun',     'jupiter',   'Trine',   2.3, 'harmonious'),  // ← Sun trine Ki's Jupiter
+  asp('venus',   'northNode', 'Sextile', 1.8, 'harmonious'),  // ← Venus sextile Ki's North Node
 
-  // Karmic friction: Saturn/Pluto challenging to personal, orb ≤ 6°
-  asp('moon', 'pluto', 'Square', 3.8, 'challenging'),        // ← Moon sq Ki's Pluto
+  // Karmic friction: Saturn/Pluto challenging to VULNERABLE planet (sun/moon/venus/mercury), orb ≤ 6°
+  asp('moon', 'pluto', 'Square', 3.8, 'challenging'),         // ← Moon sq Ki's Pluto (karma=1)
+
+  // Mars-Saturn sq: excluded from karma — Mars ∉ VULNERABLE, so Saturn sq Mars = drive tension only
+  asp('mars', 'saturn', 'Square', 3.9, 'challenging'),        // ← NOT karma
 
   // Other aspects (should not affect warmth/karma/growth counts)
   asp('jupiter', 'saturn', 'Trine',      0.1, 'harmonious'), // Jupiter-Saturn: neither is PERSONAL
-  asp('mars',    'mars',   'Square',     1.8, 'challenging'), // Mars-Mars: personal-personal challenging (not karmic)
-  asp('venus',   'saturn', 'Opposition', 6.9, 'challenging'), // Venus-Saturn outside 6° orb
+  asp('mars',    'mars',   'Square',     1.8, 'challenging'), // Mars-Mars: not karmic (mars ∉ KARMIC_PLANETS)
+  asp('venus',   'saturn', 'Opposition', 6.9, 'challenging'), // Venus-Saturn: outside 6° orb
 ]
 
 describe('Dee vs Ki — regression', () => {
   const scores = computeArchetypeScores(DEE_KI_ASPECTS)
 
   it('warmth = 3', () => expect(scores.warmth).toBe(3))
-  it('karma = 1', () => expect(scores.karma).toBe(1))
-  it('growth = 2', () => expect(scores.growth).toBe(2))
-  it('scoringRule = PEAK_HARMONY', () => expect(scores.scoringRule).toBe('PEAK_HARMONY'))
+  it('karma = 1 (Mars-Saturn sq excluded — Mars ∉ VULNERABLE)', () => expect(scores.karma).toBe(1))
+  it('growth = 4 (four Jupiter/Node harmonious aspects within 5°)', () => expect(scores.growth).toBe(4))
+  it('scoringRule = PEAK_HARMONY (warmth≥3, karma≤1, growth≥4)', () => expect(scores.scoringRule).toBe('PEAK_HARMONY'))
   it('recommendedArchetype = Highest Timeline Soulmate', () =>
     expect(scores.recommendedArchetype).toBe('Highest Timeline Soulmate'))
   it('recommendedArchetype is NOT Karmic Soulmate', () =>
@@ -200,6 +205,11 @@ describe('scoring rules — unit', () => {
 
   it('Mars square does NOT count as karmic friction (Mars is not in KARMIC_PLANETS)', () => {
     const aspects = [asp('mars', 'sun', 'Square', 1.0, 'challenging')]
+    expect(computeArchetypeScores(aspects).karma).toBe(0)
+  })
+
+  it('Saturn sq Mars does NOT count as karmic friction (Mars ∉ VULNERABLE)', () => {
+    const aspects = [asp('saturn', 'mars', 'Square', 2.0, 'challenging')]
     expect(computeArchetypeScores(aspects).karma).toBe(0)
   })
 

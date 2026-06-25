@@ -177,6 +177,9 @@ function GlobalSafetyBanner() {
 }
 
 export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDisplayProps) {
+  // scoring.finalArchetype is the source of truth; result.archetype is the same value but kept for compat
+  const displayArchetype = result.scoring?.finalArchetype ?? result.archetype
+
   return (
     <div className="space-y-8">
       {/* Archetype Card */}
@@ -184,7 +187,7 @@ export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDis
         <div className="inline-flex items-center gap-2 bg-purple-900/30 border border-purple-700/50 rounded-full px-4 py-1 text-xs text-purple-300 mb-4">
           <Star className="w-3 h-3" /> Your Partner's Archetype
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold gradient-text mb-3">{result.archetype}</h2>
+        <h2 className="text-3xl md:text-4xl font-bold gradient-text mb-3">{displayArchetype}</h2>
         <p className="text-slate-300 text-lg max-w-xl mx-auto">{result.archetypeDescription}</p>
 
         <div className="mt-6 flex justify-center">
@@ -211,10 +214,10 @@ export default function ResultsDisplay({ result, onUnlock, onReset }: ResultsDis
       </div>
 
       {/* Social sharing */}
-      <ShareSection archetype={result.archetype} compatibilityScore={result.compatibilityScore} />
+      <ShareSection archetype={displayArchetype} compatibilityScore={result.compatibilityScore} />
 
       {/* Archetype-specific safety awareness */}
-      <ArchetypeSafetyCard archetype={result.archetype} />
+      <ArchetypeSafetyCard archetype={displayArchetype} />
 
       {/* Full Analysis (Premium) */}
       {result.fullAnalysis ? (

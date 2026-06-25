@@ -8,7 +8,7 @@ import {
   formatChartForPrompt,
   formatAspectsForPrompt,
 } from '@/lib/astrology'
-import { computeArchetypeScores, buildPromptHint } from '@/lib/archetype-scoring'
+import { computeArchetypeScores, buildArchetypeContext } from '@/lib/archetype-scoring'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!
@@ -57,12 +57,27 @@ export async function POST(request: NextRequest) {
       })
     ])
 
-    // Calculate synastry aspects and derive deterministic scoring
+    // Calculate synastry aspects → deterministic archetype (Claude does not choose)
     const aspects = calculateSynastryAspects(chart1, chart2)
     const scores = computeArchetypeScores(aspects)
-    const promptHint = buildPromptHint(scores)
+    const archetypeContext = buildArchetypeContext(scores)
 
-    console.log('[analyze] scores:', JSON.stringify(scores))
+    // The archetype is fixed by the scoring system before Claude is called
+    const archetype = scores.recommendedArchetype
+
+    const scoringOutput = {
+      warmth: scores.warmth,
+      karma: scores.karma,
+      growth: scores.growth,
+      totalHarmonious: scores.totalHarmonious,
+      totalChallenging: scores.totalChallenging,
+      scoringRule: scores.scoringRule,
+      recommendedArchetype: scores.recommendedArchetype,
+      finalArchetype: scores.recommendedArchetype, // same: Claude doesn't override
+    }
+
+    console.log('[analyze] scoring:', JSON.stringify(scoringOutput))
+    console.log('[analyze] deterministic archetype:', archetype)
 
     const chartSummary1 = formatChartForPrompt('You', chart1)
     const chartSummary2 = formatChartForPrompt(person2.name, chart2)
@@ -73,8 +88,7 @@ export async function POST(request: NextRequest) {
     ))
 
     if (tier === 'free') {
-      // Free analysis: archetype + 3 insights
-      const freePrompt = `You are an expert astrologer analyzing synastry. Base your entire analysis STRICTLY on the data below — no assumptions.
+      const freePrompt = `You are an expert astrologer writing a synastry interpretation. Base your analysis STRICTLY on the data below — no assumptions.
 
 CHART POSITIONS (sign, degree in sign, ecliptic longitude):
 ${chartSummary1}
@@ -87,38 +101,24 @@ ${aspectsSummary}
 CRITICAL RULES — MUST FOLLOW:
 1. ONLY reference aspects that appear in the CONFIRMED ASPECTS list above.
 2. Do NOT infer aspects from signs alone. Two planets in the same sign are NOT conjunct unless they appear in the list with a confirmed orb.
-3. When citing an aspect, always include the sign, degree, and orb exactly as listed (e.g., "Your Moon in Pisces 12.4° conjuncts their Sun in Pisces 18.7° — 6.3° orb").
+3. When citing an aspect, always include the sign, degree, and orb (e.g., "Your Moon in Pisces 12.4° conjuncts their Sun in Pisces 18.7° — 6.3° orb").
 4. If no aspects are listed for a planet pair, do not mention an aspect between them.
 
-${promptHint}
-
-The archetype you select MUST be one of these exact strings:
-- "Highest Timeline Soulmate"
-- "Life Builder Soulmate"
-- "Karmic Soulmate"
-- "Healing Partner Soulmate"
-- "Spiritual Catalyst Soulmate"
-- "Power Couple"
-- "Intense but Temporary Soulmate"
-- "Addictive Chemistry Soulmate"
-- "Safe Love Soulmate"
+${archetypeContext}
 
 Provide a JSON response with exactly this structure:
 {
-  "archetype": "One of the nine archetypes listed above (exact string match)",
-  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words, plain language)",
+  "archetypeDescription": "One clear sentence explaining why ${archetype} fits (max 25 words, plain language, cite a specific aspect)",
   "insights": [
-    "Cite a specific confirmed aspect with exact degrees and orb",
-    "Cite a second confirmed aspect with exact degrees and orb",
-    "Describe a chart pattern or third confirmed aspect with exact degrees"
-  ],
-  "followedScoring": true,
-  "overrideRule": null
+    "Cite a specific confirmed aspect with exact degrees and orb and explain what it means for ${archetype}",
+    "Cite a second confirmed aspect with exact degrees and orb and explain its significance",
+    "Describe a third confirmed aspect or chart pattern and its relevance"
+  ]
 }`
 
       const message = await anthropic.messages.create({
         model: 'claude-opus-4-5',
-        max_tokens: 700,
+        max_tokens: 600,
         messages: [{ role: 'user', content: freePrompt }]
       })
 
@@ -127,23 +127,9 @@ Provide a JSON response with exactly this structure:
       if (!jsonMatch) throw new Error('Invalid AI response')
 
       const parsed = JSON.parse(jsonMatch[0])
-      const followedScoring = parsed.followedScoring !== false
-      const overrideRule = parsed.overrideRule ?? null
 
-      console.log('[analyze] free result:', parsed.archetype, '| followedScoring:', followedScoring, '| overrideRule:', overrideRule)
-
-      const scoringOutput = {
-        warmth: scores.warmth,
-        karma: scores.karma,
-        growth: scores.growth,
-        totalHarmonious: scores.totalHarmonious,
-        totalChallenging: scores.totalChallenging,
-        scoringRule: scores.scoringRule,
-        recommendedArchetype: scores.recommendedArchetype,
-        finalArchetype: parsed.archetype,
-        followedScoring,
-        overrideRule,
-      }
+      console.log('[analyze] top-level archetype returned:', archetype)
+      console.log('[analyze] scoring.finalArchetype:', scoringOutput.finalArchetype)
 
       // Store in Supabase
       try {
@@ -154,7 +140,7 @@ Provide a JSON response with exactly this structure:
           person2_name: person2.name,
           person1_data: { ...person1, latitude: geo1.latitude, longitude: geo1.longitude },
           person2_data: { ...person2, latitude: geo2.latitude, longitude: geo2.longitude },
-          free_analysis: { ...parsed, compatibilityScore, scoring: scoringOutput },
+          free_analysis: { archetype, ...parsed, compatibilityScore, scoring: scoringOutput },
           payment_status: 'pending',
           tier: 'free',
           created_at: new Date().toISOString()
@@ -165,15 +151,14 @@ Provide a JSON response with exactly this structure:
 
       return NextResponse.json({
         sessionId,
-        archetype: parsed.archetype,
+        archetype,                        // deterministic — from scoring, not Claude
         archetypeDescription: parsed.archetypeDescription,
         insights: parsed.insights,
         compatibilityScore,
-        scoring: scoringOutput,
+        scoring: scoringOutput,           // full scoring breakdown
       })
 
     } else {
-      // Premium analysis: full reading
       const premiumPrompt = `You are a master astrologer providing a comprehensive synastry reading. Base your entire analysis STRICTLY on the data below — no assumptions.
 
 CHART POSITIONS (sign, degree in sign, ecliptic longitude):
@@ -191,31 +176,17 @@ CRITICAL RULES — MUST FOLLOW:
 4. If a planetary area (e.g., Mars) has no confirmed aspect, note that instead of inventing one.
 5. Score fields (0–100) should reflect actual aspect quality: tight harmonious aspects = high score, no aspect = 50, challenging aspects = lower.
 
-${promptHint}
-
-The archetype you select MUST be one of these exact strings:
-- "Highest Timeline Soulmate"
-- "Life Builder Soulmate"
-- "Karmic Soulmate"
-- "Healing Partner Soulmate"
-- "Spiritual Catalyst Soulmate"
-- "Power Couple"
-- "Intense but Temporary Soulmate"
-- "Addictive Chemistry Soulmate"
-- "Safe Love Soulmate"
+${archetypeContext}
 
 Provide a detailed JSON response with this EXACT structure (all fields required):
 {
-  "archetype": "One of the nine archetypes listed above (exact string match)",
-  "archetypeDescription": "One clear sentence explaining why this archetype fits (max 25 words)",
+  "archetypeDescription": "One clear sentence explaining why ${archetype} fits (max 25 words)",
   "insights": [
     "Cite confirmed aspect 1 with exact degrees and orb",
     "Cite confirmed aspect 2 with exact degrees and orb",
     "Cite confirmed aspect 3 or describe chart patterns"
   ],
-  "followedScoring": true,
-  "overrideRule": null,
-  "overview": "3-4 sentence overview grounded in the confirmed aspects above",
+  "overview": "3-4 sentence overview grounded in the confirmed aspects above, written for the ${archetype} archetype",
   "sunCompatibility": {
     "aspect": "Confirmed Sun aspect (or 'no major Sun aspect detected')",
     "description": "2-3 sentences citing confirmed data",
@@ -257,23 +228,9 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
       if (!jsonMatch) throw new Error('Invalid AI response')
 
       const parsed = JSON.parse(jsonMatch[0])
-      const followedScoring = parsed.followedScoring !== false
-      const overrideRule = parsed.overrideRule ?? null
 
-      console.log('[analyze] premium result:', parsed.archetype, '| followedScoring:', followedScoring, '| overrideRule:', overrideRule)
-
-      const scoringOutput = {
-        warmth: scores.warmth,
-        karma: scores.karma,
-        growth: scores.growth,
-        totalHarmonious: scores.totalHarmonious,
-        totalChallenging: scores.totalChallenging,
-        scoringRule: scores.scoringRule,
-        recommendedArchetype: scores.recommendedArchetype,
-        finalArchetype: parsed.archetype,
-        followedScoring,
-        overrideRule,
-      }
+      console.log('[analyze] premium top-level archetype returned:', archetype)
+      console.log('[analyze] scoring.finalArchetype:', scoringOutput.finalArchetype)
 
       // Update Supabase record
       try {
@@ -285,13 +242,13 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
           person1_data: { ...person1, latitude: geo1.latitude, longitude: geo1.longitude },
           person2_data: { ...person2, latitude: geo2.latitude, longitude: geo2.longitude },
           free_analysis: {
-            archetype: parsed.archetype,
+            archetype,
             archetypeDescription: parsed.archetypeDescription,
             insights: parsed.insights,
             compatibilityScore,
             scoring: scoringOutput,
           },
-          full_analysis: parsed,
+          full_analysis: { archetype, ...parsed },
           payment_status: 'completed',
           tier: 'premium',
           updated_at: new Date().toISOString()
@@ -302,7 +259,7 @@ Provide a detailed JSON response with this EXACT structure (all fields required)
 
       return NextResponse.json({
         sessionId,
-        archetype: parsed.archetype,
+        archetype,                        // deterministic — from scoring, not Claude
         archetypeDescription: parsed.archetypeDescription,
         insights: parsed.insights,
         compatibilityScore,

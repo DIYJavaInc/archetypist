@@ -10,7 +10,14 @@ export interface ArchetypeScores {
   scoringRule: string
 }
 
+// All personal planets — used for warmth (bonding) detection
 const PERSONAL = new Set(['sun', 'moon', 'venus', 'mars', 'mercury'])
+
+// Core identity/emotional/relational planets — used for karmic friction detection.
+// Mars is intentionally excluded: Saturn/Pluto sq Mars represents drive-tension, not
+// karmic wounding to identity, emotions, or love (which is what Karmic Soulmate reflects).
+const VULNERABLE = new Set(['sun', 'moon', 'venus', 'mercury'])
+
 const KARMIC_PLANETS = new Set(['saturn', 'pluto'])
 const GROWTH_PLANETS = new Set(['jupiter', 'northNode'])
 
@@ -24,11 +31,12 @@ function isWarmth(a: SynastryAspect): boolean {
   )
 }
 
-// Saturn/Pluto hard aspect to a personal planet, orb ≤ 6°
+// Saturn/Pluto hard aspect to a core personal planet (Sun/Moon/Venus/Mercury), orb ≤ 6°.
+// Mars is excluded from the receiving set — see VULNERABLE definition above.
 function isKarmicFriction(a: SynastryAspect): boolean {
-  const k1 = KARMIC_PLANETS.has(a.planet1Key), p2 = PERSONAL.has(a.planet2Key)
-  const k2 = KARMIC_PLANETS.has(a.planet2Key), p1 = PERSONAL.has(a.planet1Key)
-  return a.nature === 'challenging' && a.orb <= 6 && ((k1 && p2) || (k2 && p1))
+  const k1 = KARMIC_PLANETS.has(a.planet1Key), v2 = VULNERABLE.has(a.planet2Key)
+  const k2 = KARMIC_PLANETS.has(a.planet2Key), v1 = VULNERABLE.has(a.planet1Key)
+  return a.nature === 'challenging' && a.orb <= 6 && ((k1 && v2) || (k2 && v1))
 }
 
 // Jupiter or North Node in harmonious aspect to a personal planet, orb ≤ 5°
@@ -54,7 +62,9 @@ export function computeArchetypeScores(aspects: SynastryAspect[]): ArchetypeScor
   if (karma >= 3 && warmth <= 2) {
     recommendedArchetype = 'Karmic Soulmate'
     scoringRule = 'HIGH_FRICTION'
-  } else if (warmth >= 3 && karma <= 1 && growth >= 2) {
+  } else if (warmth >= 3 && karma <= 1 && growth >= 4) {
+    // Requires strong growth signal (≥4) to distinguish from Life Builder.
+    // A modest Jupiter trine or two (growth 2-3) indicates good partnership, not peak destiny.
     recommendedArchetype = 'Highest Timeline Soulmate'
     scoringRule = 'PEAK_HARMONY'
   } else if (warmth >= 4 && karma <= 1) {
@@ -138,37 +148,18 @@ const POSITIVE_ARCHETYPES = new Set([
   'Spiritual Catalyst Soulmate',
 ])
 
-export function buildPromptHint(scores: ArchetypeScores): string {
+export function buildArchetypeContext(scores: ArchetypeScores): string {
   const { warmth, karma, growth, totalHarmonious, totalChallenging, recommendedArchetype, scoringRule } = scores
 
-  const lines: string[] = [
-    `SCORING-BASED RECOMMENDATION (computed from actual synastry aspects):`,
-    `- Overall aspect balance: ${totalHarmonious} harmonious vs ${totalChallenging} challenging`,
-    `- Warmth (personal-planet harmonious/conjunctions, orb≤6°): ${warmth}`,
-    `- Karmic friction (Saturn/Pluto hard aspects to personal planets, orb≤6°): ${karma}`,
+  return [
+    `ARCHETYPE (determined by scoring — do not change): "${recommendedArchetype}"`,
+    `Scoring context:`,
+    `- Overall: ${totalHarmonious} harmonious vs ${totalChallenging} challenging aspects`,
+    `- Warmth (personal-planet bonding, orb≤6°): ${warmth}`,
+    `- Karmic friction (Saturn/Pluto hard to personal planet, orb≤6°): ${karma}`,
     `- Growth/destiny (Jupiter/North Node harmonious to personal planet, orb≤5°): ${growth}`,
-    `- Scoring rule: ${scoringRule}`,
-    `- RECOMMENDED ARCHETYPE: "${recommendedArchetype}"`,
+    `- Rule applied: ${scoringRule}`,
     ``,
-    `ARCHETYPE SELECTION RULES:`,
-    `1. Default to the RECOMMENDED ARCHETYPE above. Your response should explain why it fits.`,
-    `2. You may override ONLY by citing one named PERMITTED OVERRIDE below (verbatim) in the "overrideRule" field.`,
-    `3. ABSOLUTE PROHIBITIONS — never choose these regardless of chart interpretation:`,
-  ]
-
-  if (warmth >= 3) {
-    lines.push(`   ✗ "Karmic Soulmate" is prohibited (warmth=${warmth}≥3 rules it out — strong personal bonding dominates karmic friction)`)
-  }
-  if (POSITIVE_ARCHETYPES.has(recommendedArchetype)) {
-    lines.push(`   ✗ "Karmic Soulmate", "Intense but Temporary Soulmate", "Addictive Chemistry Soulmate" are prohibited when scoring recommends a positive archetype`)
-  }
-
-  lines.push(`4. PERMITTED OVERRIDES — cite the exact quoted text in the "overrideRule" field:`)
-  getPermittedOverrides(scoringRule).forEach(o => lines.push(`   • ${o}`))
-
-  lines.push(`5. In your JSON response include:`)
-  lines.push(`   "followedScoring": true if you selected the recommended archetype, false if you used an override`)
-  lines.push(`   "overrideRule": null if you followed scoring, or the exact override text you applied`)
-
-  return lines.join('\n')
+    `INSTRUCTION: The archetype is already chosen. Write the description and insights AS IF "${recommendedArchetype}" is definitively correct for this chart. Do not suggest or imply a different archetype.`,
+  ].join('\n')
 }
