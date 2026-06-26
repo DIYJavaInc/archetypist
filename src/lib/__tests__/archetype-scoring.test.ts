@@ -26,206 +26,269 @@ function asp(
 }
 
 // ---------------------------------------------------------------------------
-// Regression: Dee + Ki  (Highest Timeline — score 95)
-// Real chart: warmth=5, karma=1, growth=7
-// Formula: 27 + min(5,5)*6 + 7*6 − 1*4 = 27 + 30 + 42 − 4 = 95
+// Regression: Dee + Ki  (Highest Timeline)
+// Real chart: warmth=5, karma=1, growth=7 → score 95, narrative GROWTH_DOMINANT
 // ---------------------------------------------------------------------------
 const DEE_KI_ASPECTS: SynastryAspect[] = [
-  // Warmth (5): personal-to-personal harmonious/conjunction, orb ≤ 6°
-  asp('venus',   'moon',    'Conjunction', 3.3, 'neutral'),    // w1
-  asp('venus',   'venus',   'Trine',       3.4, 'harmonious'), // w2
-  asp('moon',    'moon',    'Conjunction', 5.4, 'neutral'),    // w3
-  asp('sun',     'moon',    'Trine',       2.0, 'harmonious'), // w4
-  asp('mercury', 'venus',   'Trine',       1.5, 'harmonious'), // w5
-
-  // Growth (7): Jupiter/Node harmonious to personal planet, orb ≤ 5°
-  asp('moon',    'jupiter',   'Trine',   0.7, 'harmonious'),   // g1
-  asp('mercury', 'northNode', 'Trine',   0.1, 'harmonious'),   // g2
-  asp('sun',     'jupiter',   'Trine',   2.3, 'harmonious'),   // g3
-  asp('venus',   'northNode', 'Sextile', 1.8, 'harmonious'),   // g4
-  asp('mars',    'jupiter',   'Sextile', 3.2, 'harmonious'),   // g5 — mars is PERSONAL
-  asp('sun',     'northNode', 'Trine',   4.5, 'harmonious'),   // g6
-  asp('moon',    'northNode', 'Sextile', 2.1, 'harmonious'),   // g7
-
-  // Karma (1): Saturn/Pluto challenging to VULNERABLE (sun/moon/venus/mercury), orb ≤ 6°
-  asp('moon',    'pluto',   'Square',     3.8, 'challenging'), // k1
-
-  // Mars-Saturn sq: drive tension — NOT karma because Mars ∉ VULNERABLE
-  asp('mars',    'saturn',  'Square',     3.9, 'challenging'), // excluded from karma
-
-  // Other (neither warmth, karma, nor growth)
-  asp('jupiter', 'saturn',  'Trine',      0.1, 'harmonious'), // no personal planet
-  asp('venus',   'saturn',  'Opposition', 6.9, 'challenging'), // orb > 6°
+  // Warmth (5)
+  asp('venus',   'moon',    'Conjunction', 3.3, 'neutral'),
+  asp('venus',   'venus',   'Trine',       3.4, 'harmonious'),
+  asp('moon',    'moon',    'Conjunction', 5.4, 'neutral'),
+  asp('sun',     'moon',    'Trine',       2.0, 'harmonious'),
+  asp('mercury', 'venus',   'Trine',       1.5, 'harmonious'),
+  // Growth (7)
+  asp('moon',    'jupiter',   'Trine',   0.7, 'harmonious'),
+  asp('mercury', 'northNode', 'Trine',   0.1, 'harmonious'),
+  asp('sun',     'jupiter',   'Trine',   2.3, 'harmonious'),
+  asp('venus',   'northNode', 'Sextile', 1.8, 'harmonious'),
+  asp('mars',    'jupiter',   'Sextile', 3.2, 'harmonious'),
+  asp('sun',     'northNode', 'Trine',   4.5, 'harmonious'),
+  asp('moon',    'northNode', 'Sextile', 2.1, 'harmonious'),
+  // Karma (1)
+  asp('moon',  'pluto',  'Square', 3.8, 'challenging'),
+  // Mars-Saturn: drive tension, NOT karma (Mars ∉ VULNERABLE)
+  asp('mars',  'saturn', 'Square', 3.9, 'challenging'),
+  // Other
+  asp('jupiter', 'saturn',  'Trine',      0.1, 'harmonious'),
+  asp('venus',   'saturn',  'Opposition', 6.9, 'challenging'), // orb > 6° — excluded
 ]
 
-describe('Dee + Ki regression — Highest Timeline (score 95)', () => {
+describe('Dee + Ki regression — Highest Timeline', () => {
   const s = computeArchetypeScores(DEE_KI_ASPECTS)
 
   it('warmth = 5', () => expect(s.warmth).toBe(5))
   it('karma = 1 (Mars-Saturn sq excluded — Mars ∉ VULNERABLE)', () => expect(s.karma).toBe(1))
   it('growth = 7', () => expect(s.growth).toBe(7))
   it('compatibilityScore = 95', () => expect(s.compatibilityScore).toBe(95))
-  it('scoringRule = SCORE_95_PLUS', () => expect(s.scoringRule).toBe('SCORE_95_PLUS'))
+  it('scoringRule = GROWTH_DOMINANT', () => expect(s.scoringRule).toBe('GROWTH_DOMINANT'))
   it('recommendedArchetype = Highest Timeline Soulmate', () =>
     expect(s.recommendedArchetype).toBe('Highest Timeline Soulmate'))
 })
 
 // ---------------------------------------------------------------------------
-// Regression: Dee + Ltni  (Life Builder — score 75)
-// Real chart: warmth=10→capped at 5, karma=0, growth=3
-// Formula: 27 + 5*6 + 3*6 − 0 = 27 + 30 + 18 = 75
-// (The fixture uses 5 warmth aspects; real chart has 10 but warmth is capped at 5.)
+// Regression: Dee + Ltni  (Life Builder)
+// Real chart: warmth≥5, karma=0, growth=3
+// Narrative: warmth≥5 + karma=0 + growth≥1 → WARMTH_COMMITMENT → Life Builder
+// Score: 27+30+18-0=75
 // ---------------------------------------------------------------------------
 const DEE_LTNI_ASPECTS: SynastryAspect[] = [
-  // Warmth (5): personal-to-personal, orb ≤ 6°
-  asp('moon',  'sun',     'Conjunction', 0.2, 'neutral'),    // w1
-  asp('moon',  'mercury', 'Conjunction', 0.1, 'neutral'),    // w2
-  asp('moon',  'venus',   'Conjunction', 3.0, 'neutral'),    // w3
-  asp('venus', 'moon',    'Trine',       5.2, 'harmonious'), // w4
-  asp('sun',   'mercury', 'Sextile',     2.4, 'harmonious'), // w5
-
-  // Growth (3)
-  asp('sun',     'jupiter', 'Trine',   4.9, 'harmonious'),  // g1
-  asp('moon',    'jupiter', 'Trine',   2.7, 'harmonious'),  // g2
-  asp('mercury', 'jupiter', 'Sextile', 1.2, 'harmonious'),  // g3
-
-  // Karma (0): no qualifying Saturn/Pluto hard aspects to VULNERABLE planets
+  // Warmth (5)
+  asp('moon',  'sun',     'Conjunction', 0.2, 'neutral'),
+  asp('moon',  'mercury', 'Conjunction', 0.1, 'neutral'),
+  asp('moon',  'venus',   'Conjunction', 3.0, 'neutral'),
+  asp('venus', 'moon',    'Trine',       5.2, 'harmonious'),
+  asp('sun',   'mercury', 'Sextile',     2.4, 'harmonious'),
+  // Growth (3) — present but not at transcendent level (growth < 4)
+  asp('sun',     'jupiter', 'Trine',   4.9, 'harmonious'),
+  asp('moon',    'jupiter', 'Trine',   2.7, 'harmonious'),
+  asp('mercury', 'jupiter', 'Sextile', 1.2, 'harmonious'),
+  // Karma (0) — zero karmic friction
 ]
 
-describe('Dee + Ltni regression — Life Builder (score 75)', () => {
+describe('Dee + Ltni regression — Life Builder', () => {
   const s = computeArchetypeScores(DEE_LTNI_ASPECTS)
 
   it('warmth = 5', () => expect(s.warmth).toBe(5))
   it('karma = 0', () => expect(s.karma).toBe(0))
-  it('growth = 3', () => expect(s.growth).toBe(3))
+  it('growth = 3 (present but below Highest Timeline threshold of 4)', () => expect(s.growth).toBe(3))
   it('compatibilityScore = 75', () => expect(s.compatibilityScore).toBe(75))
-  it('scoringRule = SCORE_70_79', () => expect(s.scoringRule).toBe('SCORE_70_79'))
+  it('scoringRule = WARMTH_COMMITMENT (warmth≥5, karma=0, growth≥1)', () =>
+    expect(s.scoringRule).toBe('WARMTH_COMMITMENT'))
   it('recommendedArchetype = Life Builder Soulmate', () =>
     expect(s.recommendedArchetype).toBe('Life Builder Soulmate'))
-  it('is NOT Highest Timeline (growth < 7 with karma=0)', () =>
+  it('is NOT Highest Timeline (growth=3 < 4, so destiny signal insufficient)', () =>
     expect(s.recommendedArchetype).not.toBe('Highest Timeline Soulmate'))
+  it('is NOT Spiritual Catalyst (growth < 4 alone does not trigger Catalyst when karma=0)', () =>
+    expect(s.recommendedArchetype).not.toBe('Spiritual Catalyst'))
 })
 
 // ---------------------------------------------------------------------------
-// Regression: Dee + DW  (Spiritual Catalyst — score 61)
+// Regression: Dee + DW  (Spiritual Catalyst)
 // Real chart: warmth=5, karma=2, growth=2
-// Formula: 27 + 5*6 + 2*6 − 2*4 = 27 + 30 + 12 − 8 = 61
+// Narrative: karma≥2 + warmth≥2 → FRICTION_GROWTH → Spiritual Catalyst
+// Score: 27+30+12-8=61
 // ---------------------------------------------------------------------------
 const DEE_DW_ASPECTS: SynastryAspect[] = [
-  // Warmth (5): personal-to-personal, orb ≤ 6°
-  asp('sun',     'sun',   'Sextile',     0.5, 'harmonious'), // w1
-  asp('moon',    'mars',  'Conjunction', 1.6, 'neutral'),    // w2
-  asp('mercury', 'moon',  'Trine',       2.8, 'harmonious'), // w3
-  asp('venus',   'sun',   'Sextile',     3.1, 'harmonious'), // w4
-  asp('moon',    'venus', 'Trine',       4.3, 'harmonious'), // w5
-
+  // Warmth (5)
+  asp('sun',     'sun',   'Sextile',     0.5, 'harmonious'),
+  asp('moon',    'mars',  'Conjunction', 1.6, 'neutral'),
+  asp('mercury', 'moon',  'Trine',       2.8, 'harmonious'),
+  asp('venus',   'sun',   'Sextile',     3.1, 'harmonious'),
+  asp('moon',    'venus', 'Trine',       4.3, 'harmonious'),
   // Karma (2): Venus sq Pluto + Moon sq Pluto
-  asp('venus', 'pluto', 'Square', 2.8, 'challenging'),       // k1 (venus=VULNERABLE)
-  asp('moon',  'pluto', 'Square', 6.0, 'challenging'),       // k2 (moon=VULNERABLE, orb exactly 6°)
-
-  // Growth (2): Venus/Node trine personal
-  asp('venus',     'northNode', 'Trine', 0.4, 'harmonious'), // g1
-  asp('northNode', 'mercury',   'Trine', 0.3, 'harmonious'), // g2
+  asp('venus', 'pluto', 'Square', 2.8, 'challenging'),
+  asp('moon',  'pluto', 'Square', 6.0, 'challenging'), // orb exactly 6° — still counts
+  // Growth (2)
+  asp('venus',     'northNode', 'Trine', 0.4, 'harmonious'),
+  asp('northNode', 'mercury',   'Trine', 0.3, 'harmonious'),
 ]
 
-describe('Dee + DW regression — Spiritual Catalyst (score 61)', () => {
+describe('Dee + DW regression — Spiritual Catalyst', () => {
   const s = computeArchetypeScores(DEE_DW_ASPECTS)
 
   it('warmth = 5', () => expect(s.warmth).toBe(5))
   it('karma = 2', () => expect(s.karma).toBe(2))
   it('growth = 2', () => expect(s.growth).toBe(2))
   it('compatibilityScore = 61', () => expect(s.compatibilityScore).toBe(61))
-  it('scoringRule = SCORE_55_69', () => expect(s.scoringRule).toBe('SCORE_55_69'))
+  it('scoringRule = FRICTION_GROWTH (karma≥2, warmth≥2)', () =>
+    expect(s.scoringRule).toBe('FRICTION_GROWTH'))
   it('recommendedArchetype = Spiritual Catalyst', () =>
     expect(s.recommendedArchetype).toBe('Spiritual Catalyst'))
-  it('is NOT Karmic Soulmate — friction does not dominate when warmth+growth are present', () =>
+  it('is NOT Karmic Soulmate — warmth present + growth present', () =>
     expect(s.recommendedArchetype).not.toBe('Karmic Soulmate'))
-  it('is NOT Life Builder — score 61 is below the 70 threshold', () =>
+  it('is NOT Life Builder — karma=2 exceeds the Life Builder threshold', () =>
     expect(s.recommendedArchetype).not.toBe('Life Builder Soulmate'))
 })
 
 // ---------------------------------------------------------------------------
-// Score-to-archetype tier tests
-// These verify all six tiers independently with exact score values.
+// Narrative rule coverage — one test per archetype
 // ---------------------------------------------------------------------------
-describe('score tiers — full coverage', () => {
-  // Safe Love: w=5, k=0, g=5 → 27+30+30-0 = 87
-  it('score 87 → Safe Love Soulmate (80–94)', () => {
+describe('narrative rules — archetype coverage', () => {
+  it('Highest Timeline: growth≥4 + warmth≥4 + karma≤1', () => {
+    // w=4, k=0, g=4 → rule 1 fires
     const aspects = [
-      asp('venus',   'moon',      'Conjunction', 2.0, 'neutral'),
-      asp('venus',   'venus',     'Trine',       1.5, 'harmonious'),
-      asp('moon',    'moon',      'Conjunction', 3.0, 'neutral'),
-      asp('sun',     'moon',      'Trine',       2.0, 'harmonious'),
-      asp('mercury', 'venus',     'Trine',       1.5, 'harmonious'),
-      asp('moon',    'jupiter',   'Trine',       0.7, 'harmonious'),
-      asp('mercury', 'northNode', 'Trine',       0.1, 'harmonious'),
-      asp('sun',     'jupiter',   'Trine',       2.3, 'harmonious'),
-      asp('venus',   'northNode', 'Sextile',     1.8, 'harmonious'),
-      asp('mars',    'jupiter',   'Sextile',     3.2, 'harmonious'),
+      asp('venus',   'moon',    'Trine',   2.0, 'harmonious'), // w
+      asp('moon',    'moon',    'Trine',   1.5, 'harmonious'), // w
+      asp('sun',     'moon',    'Trine',   2.0, 'harmonious'), // w
+      asp('mercury', 'venus',   'Trine',   1.0, 'harmonious'), // w
+      asp('moon',    'jupiter',   'Trine', 0.7, 'harmonious'), // g
+      asp('mercury', 'northNode', 'Trine', 0.1, 'harmonious'), // g
+      asp('sun',     'jupiter',   'Trine', 2.3, 'harmonious'), // g
+      asp('venus',   'northNode', 'Trine', 1.8, 'harmonious'), // g
+    ]
+    const s = computeArchetypeScores(aspects)
+    expect(s.warmth).toBe(4)
+    expect(s.karma).toBe(0)
+    expect(s.growth).toBe(4)
+    expect(s.recommendedArchetype).toBe('Highest Timeline Soulmate')
+    expect(s.scoringRule).toBe('GROWTH_DOMINANT')
+  })
+
+  it('Life Builder (variant a): warmth≥5 + karma≤1 + growth≥1', () => {
+    // w=5, k=1, g=1 — lots of bonding, slight friction, some forward movement
+    const aspects = [
+      asp('venus',   'moon',    'Conjunction', 2.0, 'neutral'),
+      asp('venus',   'venus',   'Trine',       1.5, 'harmonious'),
+      asp('moon',    'moon',    'Conjunction', 3.0, 'neutral'),
+      asp('sun',     'moon',    'Trine',       2.0, 'harmonious'),
+      asp('mercury', 'venus',   'Trine',       1.5, 'harmonious'),
+      asp('moon',    'jupiter', 'Trine',       0.7, 'harmonious'), // growth
+      asp('moon',    'pluto',   'Square',      3.5, 'challenging'), // karma=1
     ]
     const s = computeArchetypeScores(aspects)
     expect(s.warmth).toBe(5)
-    expect(s.karma).toBe(0)
-    expect(s.growth).toBe(5)
-    expect(s.compatibilityScore).toBe(87)
-    expect(s.recommendedArchetype).toBe('Safe Love Soulmate')
-    expect(s.scoringRule).toBe('SCORE_80_94')
+    expect(s.karma).toBe(1)
+    expect(s.growth).toBe(1)
+    expect(s.recommendedArchetype).toBe('Life Builder Soulmate')
+    expect(s.scoringRule).toBe('WARMTH_COMMITMENT')
   })
 
-  // Romantic Soulmate with Spiritual Chemistry: w=3, k=1, g=0 → 27+18+0-4 = 41
-  it('score 41 → Romantic Soulmate with Spiritual Chemistry (40–54)', () => {
+  it('Life Builder (variant b): warmth≥4 + karma===0 + growth≥1', () => {
+    // w=4, k=0, g=2 — strong bonding, no friction, steady growth
+    const aspects = [
+      asp('venus',   'moon',    'Trine',   2.0, 'harmonious'),
+      asp('moon',    'moon',    'Trine',   1.5, 'harmonious'),
+      asp('sun',     'moon',    'Trine',   2.0, 'harmonious'),
+      asp('mercury', 'venus',   'Trine',   1.0, 'harmonious'),
+      asp('moon',    'jupiter', 'Trine',   0.7, 'harmonious'), // g
+      asp('sun',     'jupiter', 'Trine',   2.3, 'harmonious'), // g
+    ]
+    const s = computeArchetypeScores(aspects)
+    expect(s.warmth).toBe(4)
+    expect(s.karma).toBe(0)
+    expect(s.growth).toBe(2)
+    expect(s.recommendedArchetype).toBe('Life Builder Soulmate')
+    expect(s.scoringRule).toBe('WARMTH_COMMITMENT')
+  })
+
+  it('Safe Love: warmth≥3 + karma≤1, no strong building signal', () => {
+    const aspects = [
+      asp('venus', 'moon', 'Conjunction', 3.3, 'neutral'),
+      asp('venus', 'venus', 'Trine', 3.4, 'harmonious'),
+      asp('moon',  'moon',  'Conjunction', 5.4, 'neutral'),
+    ]
+    const s = computeArchetypeScores(aspects)
+    expect(s.warmth).toBe(3)
+    expect(s.karma).toBe(0)
+    expect(s.recommendedArchetype).toBe('Safe Love Soulmate')
+    expect(s.scoringRule).toBe('SECURE_ATTACHMENT')
+  })
+
+  it('Safe Love: warmth=3 + karma=1 (one friction aspect — still secure)', () => {
     const aspects = [
       asp('venus', 'moon',  'Conjunction', 3.3, 'neutral'),
       asp('venus', 'venus', 'Trine',       3.4, 'harmonious'),
       asp('moon',  'moon',  'Conjunction', 5.4, 'neutral'),
-      asp('moon',  'pluto', 'Square',      3.8, 'challenging'),
+      asp('moon',  'pluto', 'Square',      4.0, 'challenging'), // karma=1
     ]
     const s = computeArchetypeScores(aspects)
     expect(s.warmth).toBe(3)
     expect(s.karma).toBe(1)
-    expect(s.growth).toBe(0)
-    expect(s.compatibilityScore).toBe(41)
-    expect(s.recommendedArchetype).toBe('Romantic Soulmate with Spiritual Chemistry')
-    expect(s.scoringRule).toBe('SCORE_40_54')
+    expect(s.recommendedArchetype).toBe('Safe Love Soulmate')
     expect(s.recommendedArchetype).not.toBe('Life Builder Soulmate')
+    expect(s.recommendedArchetype).not.toBe('Spiritual Catalyst')
   })
 
-  // Score 64 must NOT be Life Builder — this is the core bug being fixed
-  it('score 64 (w=3, k=0, g=4) → Spiritual Catalyst, NOT Life Builder', () => {
-    // 27 + 18 + 24 - 0 = 69 → Spiritual Catalyst
-    // (old rule-based system would have hit GOOD_WARMTH → Life Builder)
+  it('Spiritual Catalyst: karma≥2 + warmth≥2', () => {
     const aspects = [
-      asp('venus', 'moon',      'Conjunction', 3.3, 'neutral'),
-      asp('venus', 'venus',     'Trine',       3.4, 'harmonious'),
-      asp('moon',  'moon',      'Conjunction', 5.4, 'neutral'),
-      asp('moon',  'jupiter',   'Trine',       0.7, 'harmonious'),
-      asp('mercury','northNode','Trine',       0.1, 'harmonious'),
-      asp('sun',   'jupiter',   'Trine',       2.3, 'harmonious'),
-      asp('venus', 'northNode', 'Sextile',     1.8, 'harmonious'),
+      asp('venus', 'moon', 'Trine',     2.0, 'harmonious'),
+      asp('sun',   'sun',  'Sextile',   1.5, 'harmonious'),
+      asp('venus', 'pluto', 'Square',   2.8, 'challenging'),
+      asp('moon',  'pluto', 'Square',   3.1, 'challenging'),
     ]
     const s = computeArchetypeScores(aspects)
-    expect(s.warmth).toBe(3)
-    expect(s.karma).toBe(0)
-    expect(s.growth).toBe(4)
-    expect(s.compatibilityScore).toBe(69)
+    expect(s.warmth).toBe(2)
+    expect(s.karma).toBe(2)
     expect(s.recommendedArchetype).toBe('Spiritual Catalyst')
-    expect(s.recommendedArchetype).not.toBe('Life Builder Soulmate')
+    expect(s.scoringRule).toBe('FRICTION_GROWTH')
   })
 
-  // Karmic: w=0, k=5, g=0 → 27+0+0-20 = 7
-  it('score 7 → Karmic Soulmate (0–39)', () => {
+  it('Karmic: karma≥3 regardless of warmth', () => {
     const aspects = [
       asp('saturn', 'sun',     'Square',     1.0, 'challenging'),
       asp('saturn', 'moon',    'Opposition', 2.0, 'challenging'),
       asp('pluto',  'venus',   'Square',     3.0, 'challenging'),
-      asp('pluto',  'mercury', 'Square',     1.5, 'challenging'),
-      asp('saturn', 'venus',   'Square',     2.5, 'challenging'),
+      asp('venus',  'moon',    'Trine',      2.0, 'harmonious'), // warmth=1 — doesn't rescue
     ]
     const s = computeArchetypeScores(aspects)
-    expect(s.karma).toBe(5)
-    expect(s.compatibilityScore).toBe(7)
+    expect(s.karma).toBe(3)
     expect(s.recommendedArchetype).toBe('Karmic Soulmate')
-    expect(s.scoringRule).toBe('SCORE_0_39')
+    expect(s.scoringRule).toBe('FRICTION_DOMINANT')
+  })
+
+  it('Karmic: karma=2 + warmth≤1', () => {
+    const aspects = [
+      asp('saturn', 'sun',   'Square',     1.5, 'challenging'),
+      asp('pluto',  'venus', 'Square',     2.0, 'challenging'),
+    ]
+    const s = computeArchetypeScores(aspects)
+    expect(s.karma).toBe(2)
+    expect(s.warmth).toBe(0)
+    expect(s.recommendedArchetype).toBe('Karmic Soulmate')
+    expect(s.scoringRule).toBe('FRICTION_DOMINANT')
+  })
+
+  // Key regression: warmth=3 + karma=0 + growth≥4 should NOT become Life Builder
+  // (warmth < 4, so rule 1 Highest Timeline requires warmth≥4 — fails here)
+  // Rule 2 also fails (warmth < 4 for variant b, warmth < 5 for variant a)
+  // Falls through to Safe Love (warmth≥3, karma≤1)
+  it('warmth=3 + karma=0 + growth=4 → Safe Love (not Life Builder, not Highest Timeline)', () => {
+    const aspects = [
+      asp('venus',   'moon',    'Conjunction', 3.3, 'neutral'),
+      asp('venus',   'venus',   'Trine',       3.4, 'harmonious'),
+      asp('moon',    'moon',    'Conjunction', 5.4, 'neutral'),
+      asp('moon',    'jupiter',   'Trine',   0.7, 'harmonious'),
+      asp('mercury', 'northNode', 'Trine',   0.1, 'harmonious'),
+      asp('sun',     'jupiter',   'Trine',   2.3, 'harmonious'),
+      asp('venus',   'northNode', 'Sextile', 1.8, 'harmonious'),
+    ]
+    const s = computeArchetypeScores(aspects)
+    expect(s.warmth).toBe(3)
+    expect(s.growth).toBe(4)
+    expect(s.karma).toBe(0)
+    expect(s.recommendedArchetype).toBe('Safe Love Soulmate')
+    expect(s.recommendedArchetype).not.toBe('Life Builder Soulmate')
+    expect(s.recommendedArchetype).not.toBe('Highest Timeline Soulmate')
   })
 })
 
@@ -258,7 +321,7 @@ describe('signal detection', () => {
     expect(computeArchetypeScores([asp('saturn', 'moon', 'Trine', 2.0, 'harmonious')]).karma).toBe(0)
   })
 
-  it('Mars square does NOT count as karmic friction (Mars is not in KARMIC_PLANETS)', () => {
+  it('Mars square does NOT count as karmic friction (Mars ∉ KARMIC_PLANETS)', () => {
     expect(computeArchetypeScores([asp('mars', 'sun', 'Square', 1.0, 'challenging')]).karma).toBe(0)
   })
 
@@ -266,8 +329,7 @@ describe('signal detection', () => {
     expect(computeArchetypeScores([asp('saturn', 'mars', 'Square', 2.0, 'challenging')]).karma).toBe(0)
   })
 
-  it('Jupiter conjunction to personal planet is NOT growth (nature must be harmonious)', () => {
-    // Conjunction is 'neutral' not 'harmonious' — isGrowth requires nature === 'harmonious'
+  it('Jupiter conjunction to personal planet is NOT growth (conjunction is neutral, not harmonious)', () => {
     expect(computeArchetypeScores([asp('jupiter', 'venus', 'Conjunction', 2.0, 'neutral')]).growth).toBe(0)
   })
 
@@ -275,54 +337,54 @@ describe('signal detection', () => {
     expect(computeArchetypeScores([asp('pluto', 'jupiter', 'Square', 1.0, 'challenging')]).karma).toBe(0)
   })
 
-  it('warmth is capped at 5 aspects in the score formula', () => {
-    // 8 warmth aspects → score = 27 + min(8,5)*6 + 0 - 0 = 57, not 75
+  it('warmth is capped at 5 in the compatibility score formula', () => {
     const aspects = Array.from({ length: 8 }, (_, i) =>
       asp('venus', 'moon', 'Trine', 1.0 + i * 0.3, 'harmonious')
     )
     const s = computeArchetypeScores(aspects)
     expect(s.warmth).toBe(8)
-    expect(s.compatibilityScore).toBe(57) // 27 + 5*6 = 57, not 27 + 8*6 = 75
+    expect(s.compatibilityScore).toBe(57) // 27 + min(8,5)*6 = 27+30 = 57, not 27+8*6=75
   })
 })
 
 // ---------------------------------------------------------------------------
-// Score formula — exact arithmetic verification
+// Score formula — arithmetic spot checks
 // ---------------------------------------------------------------------------
-describe('score formula arithmetic', () => {
-  it('w=0, k=0, g=0 → score 27 (neutral chart base)', () => {
+describe('compatibility score arithmetic', () => {
+  it('empty chart → base score 27', () => {
     expect(computeArchetypeScores([]).compatibilityScore).toBe(27)
+  })
+
+  it('w=5, k=1, g=7 → score 95', () => {
+    expect(computeArchetypeScores(DEE_KI_ASPECTS).compatibilityScore).toBe(95)
+  })
+
+  it('w=5, k=0, g=3 → score 75', () => {
+    expect(computeArchetypeScores(DEE_LTNI_ASPECTS).compatibilityScore).toBe(75)
+  })
+
+  it('w=5, k=2, g=2 → score 61', () => {
+    expect(computeArchetypeScores(DEE_DW_ASPECTS).compatibilityScore).toBe(61)
+  })
+
+  it('score clamps to 0 for heavily karmic charts', () => {
+    const aspects = Array.from({ length: 10 }, (_, i) =>
+      asp('saturn', 'moon', 'Square', 1.0 + i * 0.3, 'challenging')
+    )
+    expect(computeArchetypeScores(aspects).compatibilityScore).toBe(0)
   })
 
   it('score clamps to 100 for exceptional charts', () => {
     const aspects = [
-      // 5 warmth
-      asp('venus',   'moon',      'Conjunction', 1.0, 'neutral'),
-      asp('venus',   'venus',     'Trine',       1.0, 'harmonious'),
-      asp('moon',    'moon',      'Conjunction', 1.0, 'neutral'),
-      asp('sun',     'moon',      'Trine',       1.0, 'harmonious'),
-      asp('mercury', 'venus',     'Trine',       1.0, 'harmonious'),
-      // 10 growth → growthPts = 60; 27+30+60 = 117 → clamped to 100
-      asp('moon',    'jupiter',   'Trine',   0.5, 'harmonious'),
-      asp('sun',     'jupiter',   'Trine',   0.5, 'harmonious'),
-      asp('venus',   'jupiter',   'Trine',   0.5, 'harmonious'),
-      asp('mercury', 'jupiter',   'Trine',   0.5, 'harmonious'),
-      asp('mars',    'jupiter',   'Trine',   0.5, 'harmonious'),
-      asp('moon',    'northNode', 'Trine',   0.5, 'harmonious'),
-      asp('sun',     'northNode', 'Trine',   0.5, 'harmonious'),
-      asp('venus',   'northNode', 'Trine',   0.5, 'harmonious'),
-      asp('mercury', 'northNode', 'Trine',   0.5, 'harmonious'),
-      asp('mars',    'northNode', 'Trine',   0.5, 'harmonious'),
+      asp('venus', 'moon', 'Conjunction', 1.0, 'neutral'),
+      asp('venus', 'venus', 'Trine', 1.0, 'harmonious'),
+      asp('moon', 'moon', 'Conjunction', 1.0, 'neutral'),
+      asp('sun', 'moon', 'Trine', 1.0, 'harmonious'),
+      asp('mercury', 'venus', 'Trine', 1.0, 'harmonious'),
+      ...Array.from({ length: 10 }, (_, i) =>
+        asp('moon', 'jupiter', 'Trine', 0.5 + i * 0.1, 'harmonious')
+      ),
     ]
     expect(computeArchetypeScores(aspects).compatibilityScore).toBe(100)
-  })
-
-  it('score clamps to 0 for severely karmic charts', () => {
-    const aspects = Array.from({ length: 10 }, (_, i) =>
-      asp('saturn', 'moon', 'Square', 1.0 + i * 0.3, 'challenging')
-    )
-    // 10 karma → karmaPts = 40; 27+0+0-40 = -13 → 0
-    expect(computeArchetypeScores(aspects).compatibilityScore).toBe(0)
-    expect(computeArchetypeScores(aspects).recommendedArchetype).toBe('Karmic Soulmate')
   })
 })

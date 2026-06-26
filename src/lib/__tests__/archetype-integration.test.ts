@@ -106,8 +106,8 @@ describe('Integration: Dee + Ki', () => {
   it('compatibilityScore ≥ 95 (qualifies for Highest Timeline tier)', () =>
     expect(scores.compatibilityScore).toBeGreaterThanOrEqual(95))
 
-  it('scoringRule = SCORE_95_PLUS', () =>
-    expect(scores.scoringRule).toBe('SCORE_95_PLUS'))
+  it('scoringRule = GROWTH_DOMINANT', () =>
+    expect(scores.scoringRule).toBe('GROWTH_DOMINANT'))
 
   it('recommendedArchetype = Highest Timeline Soulmate', () =>
     expect(scores.recommendedArchetype).toBe('Highest Timeline Soulmate'))
@@ -139,8 +139,8 @@ describe('Integration: Dee + Ltni', () => {
     expect(scores.compatibilityScore).toBeLessThanOrEqual(79)
   })
 
-  it('scoringRule = SCORE_70_79', () =>
-    expect(scores.scoringRule).toBe('SCORE_70_79'))
+  it('scoringRule = WARMTH_COMMITMENT', () =>
+    expect(scores.scoringRule).toBe('WARMTH_COMMITMENT'))
 
   it('recommendedArchetype = Life Builder Soulmate', () =>
     expect(scores.recommendedArchetype).toBe('Life Builder Soulmate'))
@@ -174,8 +174,8 @@ describe('Integration: Dee + DW', () => {
     expect(scores.compatibilityScore).toBeLessThanOrEqual(69)
   })
 
-  it('scoringRule = SCORE_55_69', () =>
-    expect(scores.scoringRule).toBe('SCORE_55_69'))
+  it('scoringRule = FRICTION_GROWTH', () =>
+    expect(scores.scoringRule).toBe('FRICTION_GROWTH'))
 
   it('recommendedArchetype = Spiritual Catalyst', () =>
     expect(scores.recommendedArchetype).toBe('Spiritual Catalyst'))

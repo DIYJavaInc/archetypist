@@ -6,10 +6,14 @@ export interface ArchetypeScores {
   growth: number
   totalHarmonious: number
   totalChallenging: number
-  compatibilityScore: number   // deterministic 0–100; primary archetype selector
-  recommendedArchetype: string
-  scoringRule: string          // SCORE_<range> label
+  compatibilityScore: number   // independent 0–100 compatibility metric
+  recommendedArchetype: string // determined by synastry narrative, validated by score
+  scoringRule: string          // describes the dominant pattern that chose the archetype
 }
+
+// ---------------------------------------------------------------------------
+// Planet sets
+// ---------------------------------------------------------------------------
 
 // All personal planets — used for warmth (bonding) detection
 const PERSONAL = new Set(['sun', 'moon', 'venus', 'mars', 'mercury'])
@@ -21,6 +25,10 @@ const VULNERABLE = new Set(['sun', 'moon', 'venus', 'mercury'])
 
 const KARMIC_PLANETS = new Set(['saturn', 'pluto'])
 const GROWTH_PLANETS = new Set(['jupiter', 'northNode'])
+
+// ---------------------------------------------------------------------------
+// Signal detectors
+// ---------------------------------------------------------------------------
 
 // Personal-planet bonding: both planets are personal, aspect is harmonious or conjunction, orb ≤ 6°
 function isWarmth(a: SynastryAspect): boolean {
@@ -51,46 +59,104 @@ function isGrowth(a: SynastryAspect): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Score formula
+// Compatibility score (independent of archetype)
 //
-// Calibrated to three confirmed regression charts (from Keplerian orbital calc):
-//   Dee + Ki   (warmth=5, karma=1, growth=7) → 27 + 30 + 42 −  4 = 95 → Highest Timeline
-//   Dee + Ltni (warmth≥5, karma=0, growth=3) → 27 + 30 + 18 −  0 = 75 → Life Builder
-//   Dee + DW   (warmth=5, karma=2, growth=2) → 27 + 30 + 12 −  8 = 61 → Spiritual Catalyst
+// Answers: "How compatible are these two people overall?" (0–100)
+// The score is a weighted combination of quality-filtered signals.
+// It is NOT the archetype selector — it is a validation input.
 //
-// Design decisions:
-//   • warmth is capped at 5 aspects: having 10 tight bonding aspects is not "twice as good"
-//     as 5 — it means the same bonding energy expressed multiple ways.
-//   • growth is uncapped: Jupiter/Node activation is the primary driver of upper tiers.
-//     A chart without growth indicators cannot reach Life Builder or above on warmth alone.
-//   • karma penalty is modest (4 pts each): friction matters but should not collapse a
-//     chart with strong warmth + growth unless friction is severe.
+// Calibrated so known charts produce reasonable values:
+//   Dee + Ki   (w=5, k=1, g=7) → 95   (exceptional)
+//   Dee + Ltni (w≥5, k=0, g=3) → 75   (solid)
+//   Dee + DW   (w=5, k=2, g=2) → 61   (mixed)
 // ---------------------------------------------------------------------------
 function computeScore(warmth: number, karma: number, growth: number): number {
-  const warmthPts = Math.min(warmth, 5) * 6   // first 5 warmth aspects = 6 pts each (max 30)
-  const growthPts = growth * 6                  // each growth/destiny aspect = 6 pts (no cap)
-  const karmaPts  = karma * 4                   // each karmic friction aspect costs 4 pts
+  const warmthPts = Math.min(warmth, 5) * 6   // capped: redundant bonding above 5 adds no new info
+  const growthPts = growth * 6                  // uncapped: destiny activation drives the upper range
+  const karmaPts  = karma * 4                   // friction deduction
   return Math.min(100, Math.max(0, 27 + warmthPts + growthPts - karmaPts))
 }
 
-// Score range → archetype. Score is the sole selector; evidence is expressed through the score.
-function scoreToCategory(score: number): { archetype: string; scoringRule: string } {
-  if (score >= 95) return { archetype: 'Highest Timeline Soulmate',                  scoringRule: 'SCORE_95_PLUS' }
-  if (score >= 80) return { archetype: 'Safe Love Soulmate',                         scoringRule: 'SCORE_80_94'   }
-  if (score >= 70) return { archetype: 'Life Builder Soulmate',                      scoringRule: 'SCORE_70_79'   }
-  if (score >= 55) return { archetype: 'Spiritual Catalyst',                         scoringRule: 'SCORE_55_69'   }
-  if (score >= 40) return { archetype: 'Romantic Soulmate with Spiritual Chemistry', scoringRule: 'SCORE_40_54'   }
-  return                   { archetype: 'Karmic Soulmate',                           scoringRule: 'SCORE_0_39'    }
+// ---------------------------------------------------------------------------
+// Narrative classifier
+//
+// Answers: "What is the dominant relationship pattern?" (categorical archetype)
+// The five archetypes and their primary signals:
+//
+//   Highest Timeline Soulmate
+//     Exceptional growth/destiny + strong bonding + very low friction
+//     Requires warmth≥4 (not just ≥3) so emotional depth matches the destiny signal
+//
+//   Life Builder Soulmate
+//     Strong, stable commitment energy: high warmth, zero or minimal friction,
+//     at least some forward growth — building a life together
+//
+//   Safe Love Soulmate
+//     Secure attachment: clear warmth, low friction, no transformative turbulence
+//     Comfortable, consistent, emotionally reliable
+//
+//   Spiritual Catalyst
+//     Transformation through friction + growth/warmth present
+//     The relationship forces evolution; both connection and challenge exist
+//
+//   Karmic Soulmate
+//     Friction dominates with minimal personal bonding
+//     Repeating lessons, difficult patterns, unresolved karma
+// ---------------------------------------------------------------------------
+function narrativeClassifier(
+  warmth: number, karma: number, growth: number
+): { archetype: string; scoringRule: string } {
+
+  // 1. Highest Timeline — exceptional destiny + depth of bonding + clean chart
+  //    Requires warmth≥4 to ensure emotional depth, not just destiny without connection
+  if (growth >= 4 && warmth >= 4 && karma <= 1)
+    return { archetype: 'Highest Timeline Soulmate', scoringRule: 'GROWTH_DOMINANT' }
+
+  // 2. Life Builder — committed partnership energy
+  //    (a) Very high warmth (≥5) + acceptable friction + meaningful growth
+  //    (b) Strong warmth (≥4) + zero friction + some growth
+  //    The growth≥1 requirement separates active building from comfortable stasis
+  if ((warmth >= 5 && karma <= 1 && growth >= 1) || (warmth >= 4 && karma === 0 && growth >= 1))
+    return { archetype: 'Life Builder Soulmate', scoringRule: 'WARMTH_COMMITMENT' }
+
+  // 3. Safe Love — secure attachment, emotionally clean
+  //    Warmth present, friction low, no disruptive transformation signal
+  if (warmth >= 3 && karma <= 1)
+    return { archetype: 'Safe Love Soulmate', scoringRule: 'SECURE_ATTACHMENT' }
+
+  // 4. Spiritual Catalyst — transformation driven by friction + some warmth or growth
+  //    The chart has both challenge AND some basis for growth/connection
+  if (karma >= 2 && (warmth >= 2 || growth >= 2))
+    return { archetype: 'Spiritual Catalyst', scoringRule: 'FRICTION_GROWTH' }
+
+  // 5. Karmic — friction dominates, bonding is minimal
+  //    High friction alone, or moderate friction with almost no personal connection
+  if (karma >= 3 || (karma >= 2 && warmth <= 1))
+    return { archetype: 'Karmic Soulmate', scoringRule: 'FRICTION_DOMINANT' }
+
+  // Default: Safe Love — no dominant pattern detected; neutral chart defaults to
+  //          comfortable stability rather than implying friction or difficulty
+  return { archetype: 'Safe Love Soulmate', scoringRule: 'NEUTRAL_CHART' }
 }
 
-const SCORE_RANGE_LABEL: Record<string, string> = {
-  SCORE_95_PLUS: '95–100',
-  SCORE_80_94:   '80–94',
-  SCORE_70_79:   '70–79',
-  SCORE_55_69:   '55–69',
-  SCORE_40_54:   '40–54',
-  SCORE_0_39:    '0–39',
+// ---------------------------------------------------------------------------
+// Score sanity check (guard rails at extremes only)
+//
+// The chart narrative is the primary classifier. The score acts only as a
+// sanity check to prevent impossible combinations at the extremes:
+//   • A score < 50 chart cannot be Highest Timeline
+//   • A score > 80 chart should not be Karmic
+// Middle-range scores (40–80) do NOT override the narrative.
+// ---------------------------------------------------------------------------
+function applyScoreSanityCheck(archetype: string, score: number): string {
+  if (archetype === 'Highest Timeline Soulmate' && score < 50) return 'Safe Love Soulmate'
+  if (archetype === 'Karmic Soulmate' && score > 80)           return 'Spiritual Catalyst'
+  return archetype
 }
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export function computeArchetypeScores(aspects: SynastryAspect[]): ArchetypeScores {
   const warmth           = aspects.filter(isWarmth).length
@@ -100,7 +166,8 @@ export function computeArchetypeScores(aspects: SynastryAspect[]): ArchetypeScor
   const totalChallenging = aspects.filter(a => a.nature === 'challenging').length
 
   const compatibilityScore = computeScore(warmth, karma, growth)
-  const { archetype: recommendedArchetype, scoringRule } = scoreToCategory(compatibilityScore)
+  const { archetype: rawArchetype, scoringRule } = narrativeClassifier(warmth, karma, growth)
+  const recommendedArchetype = applyScoreSanityCheck(rawArchetype, compatibilityScore)
 
   return {
     warmth, karma, growth,
@@ -118,17 +185,16 @@ export function buildArchetypeContext(scores: ArchetypeScores): string {
     compatibilityScore, recommendedArchetype, scoringRule,
   } = scores
 
-  const rangeLabel = SCORE_RANGE_LABEL[scoringRule] ?? scoringRule
-
   return [
-    `ARCHETYPE (determined by compatibility score — do not change): "${recommendedArchetype}"`,
-    `Compatibility score: ${compatibilityScore}/100 (score range: ${rangeLabel})`,
+    `ARCHETYPE (determined by synastry narrative — do not change): "${recommendedArchetype}"`,
+    `Compatibility score: ${compatibilityScore}/100`,
+    `Dominant pattern: ${scoringRule}`,
     `Scoring signals:`,
     `- Warmth (personal-planet bonding, orb≤6°): ${warmth}`,
     `- Karmic friction (Saturn/Pluto hard aspect to core personal planet, orb≤6°): ${karma}`,
     `- Growth/destiny (Jupiter/North Node harmonious to personal planet, orb≤5°): ${growth}`,
     `- Overall: ${totalHarmonious} harmonious vs ${totalChallenging} challenging aspects`,
     ``,
-    `INSTRUCTION: The archetype is already chosen based on the compatibility score. Write the description and insights AS IF "${recommendedArchetype}" is definitively correct for this chart. Reference the strongest confirmed aspects as evidence. Do not suggest or imply a different archetype.`,
+    `INSTRUCTION: The archetype is already chosen based on the synastry narrative. Write the description and insights AS IF "${recommendedArchetype}" is definitively correct for this chart. Reference the strongest confirmed aspects as evidence. Do not suggest or imply a different archetype.`,
   ].join('\n')
 }
